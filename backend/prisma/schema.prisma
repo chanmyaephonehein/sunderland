@@ -14,9 +14,11 @@ datasource db {
 }
 
 model Users {
-  id          Int          @id @default(autoincrement())
-  email       String       @unique
-  password    String       
-  createAt    DateTime     @default(now())
-  updatedAt   DateTime     @default(now()) @updatedAt
+  id             Int       @id @default(autoincrement())
+  email          String    @unique
+  password       String    
+  loginAttempts  Int       @default(0)
+  lockUntil      DateTime? // nullable, only set when locked
+  createAt       DateTime  @default(now())
+  updatedAt      DateTime  @default(now()) @updatedAt
 }

@@ -8,7 +8,6 @@ const Login = () => {
   const [rem, setRem] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [user, setUser] = useState({ email: "", password: "" });
-  const [warnLogin, setWarnLogin] = useState(false);
   const login = async () => {
     const response = await fetch("http://localhost:5000/login", {
       method: "POST",
@@ -21,8 +20,8 @@ const Login = () => {
       localStorage.setItem("accessToken", accessToken);
       navigate("/");
     } else {
-      setWarnLogin(true);
-      alert("Wrong credential! Try again!");
+      const errorMessage = await response.text();
+      alert(errorMessage);
     }
   };
   return (

@@ -48,15 +48,59 @@ app.get("/", checkAuth, async (req, res) => {
 app.post("/login", async (req, res) => {
   const { email, password } = req.body;
   const isValid = email && email.length > 0 && password && password.length > 7;
-  if (!isValid) return res.sendStatus(400);
+  if (!isValid) return res.status(400).send("Bad Request");
   const isExist = await prisma.users.findFirst({ where: { email } });
-  if (!isExist) return res.sendStatus(404);
+  if (!isExist) return res.status(404).send("Not found the user");
 
+  //check if account is locked
+  const now = new Date();
+  if (isExist.lockUntil && now < isExist.lockUntil) {
+    const timeLeft = Math.ceil((isExist.lockUntil - now) / 1000 / 60); // Calculate time left in minutes
+    return res
+      .status(403)
+      .send(`Account is locked! Try again after ${timeLeft} minutes.`);
+  }
+
+  // reset lockUntil
+  if (isExist.lockUntil && now > isExist.lockUntil) {
+    await prisma.users.update({ where: { email }, data: { lockUntil: null } });
+  }
+
+  //check password
   const correctPw = await bcrypt.compare(password, isExist.password);
-  if (!correctPw) return res.status(401).send("Invalid Credential");
-  const user = { id: isExist.id, email: isExist.email };
-  const accessToken = jwt.sign(user, config.jwtSecret);
-  res.send({ accessToken });
+  if (!correctPw) {
+    // Increment loginAttempts on failed login
+    const updateAttemps = await prisma.users.update({
+      where: { email },
+      data: { loginAttempts: isExist.loginAttempts + 1 },
+    });
+
+    if (updateAttemps.loginAttempts === 5) {
+      const lockUntil = new Date(now.getTime() + 5 * 60 * 1000); // lock for 5 minutes
+      await prisma.users.update({
+        where: { email },
+        data: { lockUntil, loginAttempts: 0 },
+      });
+    }
+    const checkStatus = await prisma.users.findFirst({ where: { email } });
+    return res
+      .status(401)
+      .send(
+        checkStatus.lockUntil
+          ? "Account is locked. Try again later."
+          : `Invalid credentials. Account will be locked for 5 mins after attempts. Attempts left: ${
+              5 - updateAttemps.loginAttempts
+            }`
+      );
+  } else {
+    await prisma.users.update({
+      where: { email },
+      data: { loginAttempts: 0, lockUntil: null },
+    });
+    const user = { id: isExist.id, email: isExist.email };
+    const accessToken = jwt.sign(user, config.jwtSecret);
+    res.send({ accessToken });
+  }
 });
 
 app.post("/signup", async (req, res) => {
