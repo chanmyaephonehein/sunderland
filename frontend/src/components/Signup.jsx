@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import logo from "../logo.svg";
 import "../App.css";
 import { useNavigate } from "react-router-dom";
+import ReCAPTCHA from "react-google-recaptcha";
 
 const SignUp = () => {
   const navigate = useNavigate();
@@ -24,6 +25,8 @@ const SignUp = () => {
   const [sym, setSym] = useState(false);
   const [charCount, setCharCount] = useState(0);
   const [newUser, setNewUser] = useState({ email: "", password: "" });
+  const [captchaToken, setCaptchaToken] = useState(null); // Captcha token state
+
   const isPwMatch = () => {
     setDoMatch(pw1 === pw2);
   };
@@ -39,15 +42,20 @@ const SignUp = () => {
   };
 
   const signUpFunction = async () => {
-    if (doMatch && email && pw1 && pw2) {
+    if (doMatch && email && pw1 && pw2 && captchaToken) {
       const response = await fetch("http://localhost:5000/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newUser),
+        body: JSON.stringify({ ...newUser, captchaToken }),
       });
-      if (response.ok) navigate("/login");
+      if (response.ok) {
+        navigate("/login");
+      } else {
+        const errorMessage = await response.text();
+        alert(errorMessage);
+      }
     } else {
-      alert("Passwords don't match! Fill all the blank.");
+      alert("Complete the form and reCAPTCHA verification");
     }
   };
 
@@ -114,13 +122,14 @@ const SignUp = () => {
     return { score, message, colorClass }; // Return score, message, and color
   };
 
-  useEffect(() => {
-    isPwMatch();
-  }, [pw1, pw2]);
+  const captcha = (value) => {
+    setCaptchaToken(value); // Save captcha token to state
+  };
 
   useEffect(() => {
+    isPwMatch();
     setStrength(evaluatePasswordStrength(pw1));
-  }, [pw1]);
+  }, [pw1, pw2]);
 
   return (
     <div className="flex flex-row items-center justify-center min-h-screen bg-gray-50">
@@ -164,6 +173,10 @@ const SignUp = () => {
           </button>
         </div>
 
+        <ReCAPTCHA
+          sitekey="6Ld7M3YqAAAAANCNShezYh2Jrz64TUMFk8xzq5-W"
+          onChange={captcha}
+        />
         <div className="flex flex-col justify-between items-center">
           {charCount > 0 && (
             <p className={`font-semibold text-lg ${strength.colorClass}`}>

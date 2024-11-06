@@ -6,6 +6,7 @@ import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { config } from "./src/config/index.js";
+import axios from "axios";
 
 export const prisma = new PrismaClient();
 
@@ -104,21 +105,30 @@ app.post("/login", async (req, res) => {
 });
 
 app.post("/signup", async (req, res) => {
-  const { email, password } = req.body;
-  const isValid = email && email.length > 0 && password && password.length > 7;
-  if (!isValid) return res.send({ error: "Email and password are necessary." });
+  const { email, password, captchaToken } = req.body;
+  const isExist = await prisma.users.findFirst({ where: { email } });
+  if (isExist) return res.status(403).send("Email is already registered");
+
+  // Verify reCAPTCHA token with Google
+  const secretKey = process.env.RECAPTCHA_SECRET_KEY;
+  const captchaUrl = `https://www.google.com/recaptcha/api/siteverify?secret=${secretKey}&response=${captchaToken}`;
+
   try {
-    const isExist = await prisma.users.findFirst({ where: { email } });
-    if (isExist) return res.send("Email is already registered");
+    const captchaResponse = await axios.post(captchaUrl);
+    if (!captchaResponse.data.success) {
+      return res.status(400).send({ error: "reCAPTCHA validation failed" });
+    }
+
+    // Proceed with signup if reCAPTCHA is valid
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const newUser = await prisma.users.create({
+    await prisma.users.create({
       data: { email, password: hashedPassword },
     });
     res.sendStatus(200);
   } catch (err) {
-    console.log(err);
-    res.sendStatus(500);
+    console.error("Error during signup:", err);
+    res.status(500).send("Server error");
   }
 });
 
