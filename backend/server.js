@@ -100,7 +100,7 @@ app.post("/login", async (req, res) => {
     });
     const user = { id: isExist.id, email: isExist.email };
     const accessToken = jwt.sign(user, config.jwtSecret);
-    res.send({ accessToken });
+    return res.status(200).send({ accessToken });
   }
 });
 
@@ -122,14 +122,63 @@ app.post("/signup", async (req, res) => {
     // Proceed with signup if reCAPTCHA is valid
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    await prisma.users.create({
+    const user = await prisma.users.create({
       data: { email, password: hashedPassword },
     });
-    res.sendStatus(200);
+    await prisma.passwordHistory.create({
+      data: { userId: user.id, password: password },
+    });
+    return res.sendStatus(200);
   } catch (err) {
     console.error("Error during signup:", err);
-    res.status(500).send("Server error");
+    return res.status(500).send("Server error");
   }
+});
+
+app.put("/reset", checkAuth, async (req, res) => {
+  const { email, oldPassword, newPassword } = req.body;
+  const validPayload =
+    email.length > 0 &&
+    oldPassword &&
+    oldPassword.length > 7 &&
+    newPassword &&
+    newPassword.length > 7;
+  console.log(email, oldPassword, newPassword);
+  if (!validPayload) return res.status(400).send("Bad Request");
+  const hashNewPassword = await bcrypt.hash(newPassword, 10);
+  console.log(newPassword, hashNewPassword);
+  const isExist = await prisma.users.findFirst({ where: { email } });
+  if (!isExist) return res.status(404).send("User is not found");
+  const correctPw = await bcrypt.compare(oldPassword, isExist.password);
+  if (!correctPw) {
+    return res
+      .status(401)
+      .send(
+        "Old Password is wrong so that new password cannot be changed. Try again!"
+      );
+  }
+
+  const history = await prisma.passwordHistory.findMany({
+    where: { userId: isExist.id },
+  });
+  const usedPassword = history.filter((item) => item.password === newPassword);
+  if (usedPassword.length > 0) {
+    return res
+      .status(400)
+      .send(
+        "New password is same with one of this account's old password. Try another!"
+      );
+  } else {
+    await prisma.passwordHistory.create({
+      data: { userId: isExist.id, password: newPassword },
+    });
+
+    await prisma.users.update({
+      where: { email },
+      data: { password: hashNewPassword },
+    });
+  }
+  return res.status(200).send("Password is changed successfully!");
 });
 
 app.listen(port, () => {

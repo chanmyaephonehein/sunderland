@@ -76,13 +76,18 @@ const SignUp = () => {
     // Determine score based on length first
     if (pw.length < 5) {
       score = 0; // Very Weak
-    } else if (pw.length < 6) {
+    } else if (pw.length < 7) {
       score = 1; // Weak
-    } else if (pw.length < 8) {
-      score = 2; // Moderate
+    } else if (pw.length < 12) {
+      score = 1; // Moderate && Strong
+      if (upperCriteria) score++;
+      if (lowerCriteria) score++;
+      if (numberCriteria) score++;
+      if (symbolCriteria) score++;
     } else {
       // Length is 8 or more, check complexity
       // score += 3; // Start with Strong
+      score += 2;
       if (upperCriteria) score++;
       if (lowerCriteria) score++;
       if (numberCriteria) score++;
@@ -107,15 +112,23 @@ const SignUp = () => {
         colorClass = "text-yellow-500"; // Yellow
         break;
       case 3:
+        message = "Moderate";
+        colorClass = "text-yellow-500"; // Yellow
+        break;
+      case 4:
+        message = "Moderate";
+        colorClass = "text-yellow-500"; // Yellow
+        break;
+      case 5:
         message = "Strong";
         colorClass = "text-blue-500"; // Blue
         break;
-      case 4:
+      case 6:
         message = "Very Strong";
         colorClass = "text-green-500"; // Green
         break;
       default:
-        message = "Very k"; // Fallback
+        message = "Try again"; // Fallback
         colorClass = "text-red-500"; // Red
     }
 
@@ -133,41 +146,50 @@ const SignUp = () => {
 
   return (
     <div className="flex flex-row items-center justify-center min-h-screen bg-gray-50">
-      <div className="App flex flex-col gap-5 w-[400px] shadow-lg p-10">
+      <div className="App flex flex-col gap-3 w-[400px] shadow-lg p-10">
         <img src={logo} className="App-logo" alt="logo" />
         <h1 className="text-2xl">Sign Up</h1>
-        <input
-          onChange={(evt) => forEmail(evt.target.value)}
-          type="email"
-          className="border border-gray-800 rounded-sm p-2 focus:outline-none focus:ring-2 border-2 focus:ring-blue-500 w-full"
-          placeholder="Enter your email"
-        />
+        <div>
+          <p className="flex justify-start text-gray-500 text-sm pl-1">Email</p>
+          <input
+            onChange={(evt) => forEmail(evt.target.value)}
+            type="email"
+            className=" border-gray-800 rounded-sm p-2 focus:outline-none focus:ring-2 border-2 focus:ring-blue-500 w-full"
+            placeholder="Enter your email"
+          />
+        </div>
         <div className="relative w-full">
+          <p className="flex justify-start text-gray-500 text-sm pl-1">
+            Password
+          </p>
           <input
             onChange={(evt) => forPw1(evt.target.value)}
             type={showPassword ? "text" : "password"}
-            className="border border-gray-800 rounded-sm p-2 focus:outline-none focus:ring-2 focus:ring-blue-500 w-full"
+            className="border-2 border-gray-800 rounded-sm p-2 focus:outline-none focus:ring-2 focus:ring-blue-500 w-full"
             placeholder="Enter your password"
           />
           <button
             type="button"
             onClick={togglePasswordVisibility}
-            className="absolute right-2 top-1/2 transform -translate-y-1/2 text-blue-500"
+            className="absolute right-2 top-1/2 transform -translate-y-1/5 text-blue-500"
           >
             {showPassword ? "Hide" : "Show"}
           </button>
         </div>
         <div className="relative w-full">
+          <p className="flex justify-start text-gray-500 text-sm pl-1">
+            Re-Password
+          </p>
           <input
             onChange={(evt) => setPw2(evt.target.value)}
             type={showPassword ? "text" : "password"}
-            className="border border-gray-800 rounded-sm p-2 focus:outline-none focus:ring-2 focus:ring-blue-500 w-full"
+            className="border-2 border-gray-800 rounded-sm p-2 focus:outline-none focus:ring-2 focus:ring-blue-500 w-full"
             placeholder="Re-enter your password"
           />
           <button
             type="button"
             onClick={togglePasswordVisibility}
-            className="absolute right-2 top-1/2 transform -translate-y-1/2 text-blue-500"
+            className="absolute right-2 top-1/2 transform -translate-y-1/5 text-blue-500"
           >
             {showPassword ? "Hide" : "Show"}
           </button>

@@ -21,4 +21,14 @@ model Users {
   lockUntil      DateTime? // nullable, only set when locked
   createAt       DateTime  @default(now())
   updatedAt      DateTime  @default(now()) @updatedAt
+  PasswordHistory          PasswordHistory[]
+}
+
+model PasswordHistory {
+  id             Int       @id @default(autoincrement())
+  password       String
+  userId         Int
+  users          Users       @relation(fields:[userId], references: [id])
+  createAt       DateTime  @default(now())
+  updatedAt      DateTime  @default(now()) @updatedAt
 }

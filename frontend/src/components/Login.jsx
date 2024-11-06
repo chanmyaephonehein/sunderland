@@ -28,23 +28,29 @@ const Login = () => {
     <div className="flex flex-row items-center justify-center min-h-screen bg-gray-50">
       <div className="App flex flex-col gap-5 w-[400px] shadow-lg p-10">
         <img src={logo} className="App-logo" alt="logo" />
-        <h1 className="text-2xl">Login</h1>
-        <input
-          onChange={(evt) => setUser({ ...user, email: evt.target.value })}
-          type="email"
-          className="border border-gray-800 rounded-sm p-2 focus:outline-none focus:ring-2 border-2 focus:ring-blue-500 w-full"
-          placeholder="Enter your email"
-        />
+        <h1 className="text-2xl">Login</h1>{" "}
+        <div>
+          <p className="flex justify-start text-gray-500 text-sm pl-1">Email</p>
+          <input
+            onChange={(evt) => setUser({ ...user, email: evt.target.value })}
+            type="email"
+            className=" border-gray-800 rounded-sm p-2 focus:outline-none focus:ring-2 border-2 focus:ring-blue-500 w-full"
+            placeholder="Enter your email"
+          />
+        </div>
         <div className="relative w-full">
+          <p className="flex justify-start text-gray-500 text-sm pl-1">
+            Password
+          </p>
           <input
             onChange={(evt) => setUser({ ...user, password: evt.target.value })}
             type={showPassword ? "text" : "password"}
-            className="border border-gray-800 rounded-sm p-2 focus:outline-none focus:ring-2 border-2 focus:ring-blue-500 w-full"
+            className=" border-gray-800 rounded-sm p-2 focus:outline-none focus:ring-2 border-2 focus:ring-blue-500 w-full"
             placeholder="Enter your password"
           />
           <button
             type="button"
-            className="absolute right-2 top-1/2 transform -translate-y-1/2 text-blue-500"
+            className="absolute right-2 top-1/2 transform -translate-y-1/5 text-blue-500"
             onClick={() => setShowPassword(!showPassword)}
           >
             {showPassword ? "Hide" : "Show"}
