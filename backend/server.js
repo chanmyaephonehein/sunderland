@@ -7,6 +7,8 @@ import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 import { config } from "./src/config/index.js";
 import axios from "axios";
+import nodemailer from "nodemailer";
+import crypto from "crypto";
 
 export const prisma = new PrismaClient();
 
@@ -106,6 +108,11 @@ app.post("/login", async (req, res) => {
 
 app.post("/signup", async (req, res) => {
   const { email, password, captchaToken } = req.body;
+  const isValid = email && password && password.length > 7 && captchaToken;
+  if (!isValid)
+    return res
+      .status(400)
+      .send("Password must at least 8 and fill all the blank");
   const isExist = await prisma.users.findFirst({ where: { email } });
   if (isExist) return res.status(403).send("Email is already registered");
 
@@ -135,7 +142,7 @@ app.post("/signup", async (req, res) => {
   }
 });
 
-app.put("/reset", checkAuth, async (req, res) => {
+app.put("/update-password", checkAuth, async (req, res) => {
   const { email, oldPassword, newPassword } = req.body;
   const validPayload =
     email.length > 0 &&
@@ -151,11 +158,7 @@ app.put("/reset", checkAuth, async (req, res) => {
   if (!isExist) return res.status(404).send("User is not found");
   const correctPw = await bcrypt.compare(oldPassword, isExist.password);
   if (!correctPw) {
-    return res
-      .status(401)
-      .send(
-        "Old Password is wrong so that new password cannot be changed. Try again!"
-      );
+    return res.status(401).send("Wrong Current Password. Try again");
   }
 
   const history = await prisma.passwordHistory.findMany({
@@ -165,9 +168,7 @@ app.put("/reset", checkAuth, async (req, res) => {
   if (usedPassword.length > 0) {
     return res
       .status(400)
-      .send(
-        "New password is same with one of this account's old password. Try another!"
-      );
+      .send("This New Password is used before. Try another!");
   } else {
     await prisma.passwordHistory.create({
       data: { userId: isExist.id, password: newPassword },
@@ -181,6 +182,114 @@ app.put("/reset", checkAuth, async (req, res) => {
   return res.status(200).send("Password is changed successfully!");
 });
 
+// Add a new endpoint for password reset request
+app.post("/forgot", async (req, res) => {
+  const { email } = req.body;
+  const isExist = await prisma.users.findFirst({ where: { email } });
+  if (!isExist) return res.status(404).send("No user found");
+  try {
+    // Check if user exists
+    const user = await prisma.users.findFirst({ where: { email } });
+    if (!user) return res.status(404).send("User not found");
+
+    // Generate a password reset token
+    const resetToken = crypto.randomBytes(32).toString("hex");
+    const tokenExpiry = new Date(Date.now() + 300000); // Token valid for 5 minutes
+
+    // Save token and expiry in the database
+    await prisma.users.update({
+      where: { email },
+      data: {
+        resetToken,
+        resetTokenExpiry: tokenExpiry,
+      },
+    });
+
+    // Send password reset email
+    const transporter = nodemailer.createTransport({
+      service: "Gmail", // or your preferred email service
+      auth: {
+        user: "sunderland239770741@gmail.com",
+        pass: "rwoo lmze itoz wnhe",
+      },
+    });
+
+    const resetUrl = `http://localhost:3000/reset-password/${resetToken}`; // Adjust to your frontend URL
+    const mailOptions = {
+      to: email,
+      from: "sunderland239770741@gmail.com",
+      subject: "Password Reset Request",
+      text: `You requested a password reset. This reset link will last for only 5 mintues.Click the link to reset your password: ${resetUrl}`,
+    };
+
+    await transporter.sendMail(mailOptions);
+    res.status(200).send("Password reset email sent");
+  } catch (error) {
+    console.error("Error during password reset:", error);
+    res.status(500).send("Server error");
+  }
+});
+
+app.post("/reset-password", async (req, res) => {
+  const { token, newPw } = req.body;
+  const isValid = token && newPw && newPw.length > 7;
+  if (!isValid) return res.status(400).send("Bad Request.");
+  const isExist = await prisma.users.findFirst({
+    where: { resetToken: token },
+  });
+  if (!isExist) return res.status(404).send("User is not found");
+  try {
+    // Find the user by reset token
+    const user = await prisma.users.findFirst({
+      where: { resetToken: token, resetTokenExpiry: { gt: new Date() } }, // Check token expiry
+    });
+
+    if (!user) {
+      return res.status(400).send("Invalid or expired token.");
+    }
+
+    // Hash the new password
+    const hashedPassword = await bcrypt.hash(newPw, 10);
+
+    const history = await prisma.passwordHistory.findMany({
+      where: { userId: isExist.id },
+    });
+    const usedPassword = history.filter((item) => item.password === newPw);
+    if (usedPassword.length > 0) {
+      return res.status(400).send("This Password is used before. Try another!");
+    } else {
+      await prisma.passwordHistory.create({
+        data: { userId: isExist.id, password: newPw },
+      });
+
+      // Update the user's password and clear the reset token and expiry
+      await prisma.users.update({
+        where: { id: user.id },
+        data: {
+          password: hashedPassword,
+          resetToken: null,
+          resetTokenExpiry: null,
+        },
+      });
+
+      res.status(200).send("Password reset successful!");
+    }
+  } catch (error) {
+    console.error("Error during password reset:", error);
+    res.status(500).send("An error occurred while resetting the password.");
+  }
+});
+
+app.post("/expiry", async (req, res) => {
+  const { token } = req.body;
+  console.log(token);
+  if (!token) return res.status(400).send("Bad Request");
+  const isExist = await prisma.users.findFirst({
+    where: { resetToken: token, resetTokenExpiry: { gt: new Date() } },
+  });
+  if (!isExist) return res.status(400).send("Invalid or expired token.");
+  if (isExist) return res.status(200);
+});
 app.listen(port, () => {
   console.log("Server is listening at port ", port);
 });

@@ -12,17 +12,19 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
-
 model Users {
-  id             Int       @id @default(autoincrement())
-  email          String    @unique
-  password       String    
-  loginAttempts  Int       @default(0)
-  lockUntil      DateTime? // nullable, only set when locked
-  createAt       DateTime  @default(now())
-  updatedAt      DateTime  @default(now()) @updatedAt
-  PasswordHistory          PasswordHistory[]
+  id                Int             @id @default(autoincrement())
+  email             String          @unique
+  password          String    
+  loginAttempts     Int             @default(0)
+  lockUntil         DateTime?       // nullable, only set when locked
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @default(now()) @updatedAt
+  resetToken        String?         // Token for password reset, nullable
+  resetTokenExpiry  DateTime?       // Expiry time for the reset token, nullable
+  PasswordHistory PasswordHistory[]
 }
+
 
 model PasswordHistory {
   id             Int       @id @default(autoincrement())

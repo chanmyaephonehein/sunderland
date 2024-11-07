@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import LoadingOverlay from "./components/Loading";
 
 const App = () => {
+  const [loading, setLoading] = useState(false);
   const [storedData, setStoredData] = useState({ email: "" });
   const accessToken = localStorage.getItem("accessToken");
   const [oldPw, setOldPw] = useState("");
   const [newPw, setNewPw] = useState("");
-  const [showOld, setShowOld] = useState(false);
-  const [showNew, setShowNew] = useState(false);
+  const [show, setShow] = useState(false);
   const [strength, setStrength] = useState({
     score: 0,
     message: "",
@@ -117,18 +118,15 @@ const App = () => {
     navigate("/login");
   };
 
-  const toggleOldPw = () => {
-    setShowOld(!showOld);
+  const togglePw = () => {
+    setShow(!show);
   };
 
-  const toggleNewPw = () => {
-    setShowNew(!showNew);
-  };
-
+  const [countdown, setCountdown] = useState(0);
   const updatePassword = async () => {
     if (oldPw && newPw && newPw.length > 7) {
       const payload = { ...storedData, oldPassword: oldPw, newPassword: newPw };
-      const response = await fetch("http://localhost:5000/reset", {
+      const response = await fetch("http://localhost:5000/update-password", {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -137,6 +135,8 @@ const App = () => {
         body: JSON.stringify(payload),
       });
       if (response.ok) {
+        setOldPw("");
+        setNewPw("");
         const successMessage = await response.text();
         alert(successMessage);
       } else {
@@ -144,9 +144,53 @@ const App = () => {
         alert(errorMessage);
       }
     } else {
-      alert("Fill both old and new password.");
+      alert("Fill both old and new password with at least 8.");
     }
   };
+  const handleForgotPassword = async () => {
+    if (countdown > 0) return;
+    setLoading(true);
+    try {
+      const response = await fetch("http://localhost:5000/forgot", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: storedData.email }),
+      });
+      if (response.ok) {
+        alert("Password reset link has been sent to your email. Click OK!");
+      } else {
+        alert("Error sending password reset email.");
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      alert("An error occurred. Please try again later.");
+    }
+    setLoading(false);
+    setCountdown(60);
+    localStorage.setItem("countdown", "60");
+  };
+
+  useEffect(() => {
+    const cd = localStorage.getItem("countdown");
+    setCountdown(Number(cd));
+  }, []);
+
+  const formatCountdown = (seconds) => {
+    const minutes = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${minutes}:${secs < 10 ? "0" : ""}${secs}`;
+  };
+
+  useEffect(() => {
+    if (countdown <= 0) return;
+
+    const timer = setInterval(() => {
+      setCountdown((prevCountdown) => prevCountdown - 1);
+      localStorage.setItem("countdown", countdown);
+    }, 1000);
+
+    return () => clearInterval(timer); // Clear the timer when the countdown reaches 0 or on component unmount
+  }, [countdown]);
 
   useEffect(() => {
     if (accessToken) {
@@ -163,6 +207,8 @@ const App = () => {
 
   return (
     <div className="flex flex-col items-center">
+      {loading && <LoadingOverlay />} {/* Show loading overlay when loading */}
+      {/* Rest of your SignUp component code */}
       <div className="flex flex-col justify-center items-center m-10">
         <p className="font-bold text-3xl text-blue-600">Welcome To Home Page</p>
       </div>
@@ -179,16 +225,16 @@ const App = () => {
           </p>
           <input
             onChange={(evt) => setOldPw(evt.target.value)}
-            type={showOld ? "text" : "password"}
+            type={show ? "text" : "password"}
             className="border border-gray-800 rounded-sm p-2 focus:outline-none focus:ring-2 focus:ring-blue-500 w-full"
             placeholder="Enter current password"
           />
           <button
             type="button"
-            onClick={toggleOldPw}
+            onClick={togglePw}
             className="absolute right-2 top-1/2 transform -translate-y-1/5 text-blue-500"
           >
-            {showOld ? "Hide" : "Show"}
+            {show ? "Hide" : "Show"}
           </button>
         </div>
         <div className="relative w-full">
@@ -197,18 +243,34 @@ const App = () => {
           </p>
           <input
             onChange={(evt) => setNewPw(evt.target.value)}
-            type={showNew ? "text" : "password"}
+            type={show ? "text" : "password"}
             className="border border-gray-800 rounded-sm p-2 focus:outline-none focus:ring-2 focus:ring-blue-500 w-full"
             placeholder="Enter new password"
           />
           <button
             type="button"
-            onClick={toggleNewPw}
+            onClick={togglePw}
             className="absolute right-2 top-1/2 transform -translate-y-1/5 text-blue-500"
           >
-            {showNew ? "Hide" : "Show"}
+            {show ? "Hide" : "Show"}
           </button>
         </div>
+        {countdown === 0 ? (
+          <p className="text-center w-full text-sm text-blue-600 font-bold cursor-pointer ">
+            Forgot Password?{" "}
+            <p
+              className="underline hover:text-blue-800"
+              onClick={handleForgotPassword}
+            >
+              Click here to send reset email.
+            </p>
+          </p>
+        ) : (
+          <p className="text-center w-full text-sm text-blue-600 font-bold cursor-pointer ">
+            {" "}
+            Resend After: {formatCountdown(countdown)}
+          </p>
+        )}
         <div className="flex flex-col justify-between items-center">
           {charCount > 0 && (
             <p className={`font-semibold text-lg ${strength.colorClass}`}>

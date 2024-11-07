@@ -1,19 +1,14 @@
 import React, { useEffect, useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import logo from "../logo.svg";
-import "../App.css";
-import { useNavigate } from "react-router-dom";
-import ReCAPTCHA from "react-google-recaptcha";
 
-const SignUp = () => {
+const ResetPassword = () => {
+  const { token } = useParams(); // Extract the token from the URL
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [error, setError] = useState("");
   const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
-  const togglePasswordVisibility = () => {
-    setShowPassword((prev) => !prev);
-  };
-  const [email, setEmail] = useState("");
-  const [pw1, setPw1] = useState("");
-  const [pw2, setPw2] = useState("");
-  const [doMatch, setDoMatch] = useState(false);
   const [strength, setStrength] = useState({
     score: 0,
     message: "",
@@ -24,42 +19,56 @@ const SignUp = () => {
   const [num, setNum] = useState(false);
   const [sym, setSym] = useState(false);
   const [charCount, setCharCount] = useState(0);
-  const [newUser, setNewUser] = useState({ email: "", password: "" });
-  const [captchaToken, setCaptchaToken] = useState(null); // Captcha token state
 
-  const isPwMatch = () => {
-    setDoMatch(pw1 === pw2);
+  const ifExpire = async () => {
+    const response = await fetch(`http://localhost:5000/expiry`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ token }),
+    });
+    if (response.ok) {
+      return alert("Reset your password.");
+    } else if (!response.ok) {
+      navigate("/");
+      return alert(await response.text());
+    }
   };
 
-  const forEmail = (email) => {
-    setEmail(email);
-    setNewUser({ ...newUser, email });
-  };
+  useEffect(() => {
+    ifExpire();
+  }, []);
 
-  const forPw1 = (pw1) => {
-    setPw1(pw1);
-    setNewUser({ ...newUser, password: pw1 });
-  };
-
-  const signUpFunction = async () => {
-    if (email && captchaToken && pw1 === pw2 && pw1.length >= 8) {
-      const response = await fetch("http://localhost:5000/signup", {
+  const handlePasswordReset = async (e) => {
+    if (newPassword !== confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+    try {
+      const response = await fetch(`http://localhost:5000/reset-password`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...newUser, captchaToken }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ token, newPw: newPassword }),
       });
       if (response.ok) {
-        alert("Account is registered!");
-        navigate("/login");
+        const message = await response.text();
+        alert(message);
+        navigate("/login"); // Redirect to login page
       } else {
         const errorMessage = await response.text();
         alert(errorMessage);
+        navigate("/");
       }
-    } else {
-      alert(
-        "Complete the form and reCAPTCHA verification & Password at least 8."
-      );
+    } catch (error) {
+      setError("Failed to reset password. Please try again.");
     }
+  };
+
+  const togglePasswordVisibility = () => {
+    setShowPassword(!showPassword);
   };
 
   const evaluatePasswordStrength = (pw) => {
@@ -138,38 +147,27 @@ const SignUp = () => {
     return { score, message, colorClass }; // Return score, message, and color
   };
 
-  const captcha = (value) => {
-    setCaptchaToken(value); // Save captcha token to state
-  };
-
   useEffect(() => {
-    isPwMatch();
-    setStrength(evaluatePasswordStrength(pw1));
-  }, [pw1, pw2]);
+    setStrength(evaluatePasswordStrength(newPassword));
+  }, [newPassword]);
 
   return (
     <div className="flex flex-row items-center justify-center min-h-screen bg-gray-50">
       <div className="App flex flex-col gap-3 w-[400px] shadow-lg p-10">
         <img src={logo} className="App-logo" alt="logo" />
-        <h1 className="text-2xl">Sign Up</h1>
-        <div>
-          <p className="flex justify-start text-gray-500 text-sm pl-1">Email</p>
-          <input
-            onChange={(evt) => forEmail(evt.target.value)}
-            type="email"
-            className=" border-gray-800 rounded-sm p-2 focus:outline-none focus:ring-2 border-2 focus:ring-blue-500 w-full"
-            placeholder="Enter your email"
-          />
-        </div>
+        <h2 className="text-2xl">Reset Password</h2>
+        {error && <p style={{ color: "red" }}>{error}</p>}
         <div className="relative w-full">
           <p className="flex justify-start text-gray-500 text-sm pl-1">
-            Password
+            New Password
           </p>
           <input
-            onChange={(evt) => forPw1(evt.target.value)}
             type={showPassword ? "text" : "password"}
+            placeholder="New Password"
+            value={newPassword}
+            onChange={(e) => setNewPassword(e.target.value)}
+            required
             className="border-2 border-gray-800 rounded-sm p-2 focus:outline-none focus:ring-2 focus:ring-blue-500 w-full"
-            placeholder="Enter your password"
           />
           <button
             type="button"
@@ -181,13 +179,15 @@ const SignUp = () => {
         </div>
         <div className="relative w-full">
           <p className="flex justify-start text-gray-500 text-sm pl-1">
-            Re-Password
+            Confirm New Password
           </p>
           <input
-            onChange={(evt) => setPw2(evt.target.value)}
             type={showPassword ? "text" : "password"}
+            placeholder="Confirm New Password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            required
             className="border-2 border-gray-800 rounded-sm p-2 focus:outline-none focus:ring-2 focus:ring-blue-500 w-full"
-            placeholder="Re-enter your password"
           />
           <button
             type="button"
@@ -196,12 +196,7 @@ const SignUp = () => {
           >
             {showPassword ? "Hide" : "Show"}
           </button>
-        </div>
-
-        <ReCAPTCHA
-          sitekey="6Ld7M3YqAAAAANCNShezYh2Jrz64TUMFk8xzq5-W"
-          onChange={captcha}
-        />
+        </div>{" "}
         <div className="flex flex-col justify-between items-center">
           {charCount > 0 && (
             <p className={`font-semibold text-lg ${strength.colorClass}`}>
@@ -237,24 +232,14 @@ const SignUp = () => {
           </div>
         </div>
         <button
-          onClick={signUpFunction}
           className="bg-blue-500 text-white font-semibold py-2 px-4 rounded hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+          onClick={handlePasswordReset}
         >
-          Sign Up
+          Reset Password
         </button>
-        <p>
-          Already have an account?{" "}
-          <span
-            className="text-blue-600 underline cursor-pointer"
-            onClick={() => navigate("/")}
-          >
-            Login
-          </span>{" "}
-          Here.
-        </p>
       </div>
     </div>
   );
 };
 
-export default SignUp;
+export default ResetPassword;
