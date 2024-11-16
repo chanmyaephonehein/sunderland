@@ -3,22 +3,25 @@ import logo from "../logo.svg";
 import "../App.css";
 import { useNavigate } from "react-router-dom";
 import LoadingOverlay from "./Loading";
+import ReCAPTCHA from "react-google-recaptcha";
 
 const Login = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
-  const [rem, setRem] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [user, setUser] = useState({ email: "", password: "" });
   const [countdown, setCountdown] = useState(0);
+  const [captchaToken, setCaptchaToken] = useState(null); // Captcha token state
+  const [showForgotPassword, setShowForgotPassword] = useState(false); // State for dialog visibility
 
   const login = async () => {
-    const isValid = user.email && user.password && user.password.length > 7;
-    if (!isValid) return alert("Check your email and password.");
+    const isValid =
+      user.email && user.password && user.password.length > 7 && captchaToken;
+    if (!isValid) return alert("Fill email, password and captcha");
     const response = await fetch("http://localhost:5000/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(user),
+      body: JSON.stringify({ ...user, captchaToken }),
     });
     if (response.ok) {
       const responseData = await response.json();
@@ -31,7 +34,7 @@ const Login = () => {
     }
   };
 
-  const handleForgotPassword = async () => {
+  const handleSendMail = async () => {
     if (countdown > 0) return;
     setLoading(true);
     try {
@@ -42,6 +45,8 @@ const Login = () => {
       });
       if (response.ok) {
         alert("Password reset link has been sent to your email. Click OK!");
+        setCountdown(60);
+        setUser({ ...user, email: "" });
       } else {
         alert("Fill email input to reset!");
       }
@@ -50,8 +55,11 @@ const Login = () => {
       alert("An error occurred. Please try again later.");
     }
     setLoading(false);
-    setCountdown(60);
     localStorage.setItem("countdown", "60");
+  };
+
+  const captcha = (value) => {
+    setCaptchaToken(value); // Save captcha token to state
   };
 
   useEffect(() => {
@@ -109,30 +117,52 @@ const Login = () => {
             {showPassword ? "Hide" : "Show"}
           </button>
         </div>
-        <div className="flex justify-between items-top">
-          <div className="flex justify-center items-center">
-            <input
-              onClick={() => setRem(!rem)}
-              type="checkbox"
-              id="checkbox1"
-              name="checkbox1"
-            />
-            <label>RememberMe</label>{" "}
+        <p
+          onClick={() => setShowForgotPassword(true)} // Open the dialog
+          className="text-right w-full text-sm text-blue-600 font-bold cursor-pointer underline hover:text-blue-800"
+        >
+          Forgot Password?
+        </p>
+        {showForgotPassword && (
+          <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
+            <div className="bg-white p-6 rounded shadow-lg w-[300px]">
+              <h2 className="text-xl mb-4">Reset Password</h2>
+              <input
+                onChange={(evt) =>
+                  setUser({ ...user, email: evt.target.value })
+                }
+                type="email"
+                className=" border-gray-800 rounded-sm p-2 mb-4 focus:outline-none focus:ring-2 border-2 focus:ring-blue-500 w-full"
+                placeholder="Enter your email"
+              />
+              {countdown === 0 ? (
+                <button
+                  onClick={handleSendMail} // Send mail function
+                  className="bg-blue-500 text-white font-semibold py-2 px-4 rounded hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 w-full"
+                >
+                  Send Reset Link
+                </button>
+              ) : (
+                <p className="text-center text-sm text-blue-600 font-bold">
+                  Wait: {formatCountdown(countdown)}
+                </p>
+              )}
+              <button
+                onClick={() => {
+                  setShowForgotPassword(false);
+                  setUser({ ...user, email: "" });
+                }} // Close the dialog
+                className="mt-4 text-gray-500 underline w-full text-sm"
+              >
+                Cancel
+              </button>
+            </div>
           </div>
-          {countdown === 0 ? (
-            <p
-              onClick={handleForgotPassword}
-              className="text-right w-full text-sm text-blue-600 font-bold cursor-pointer underline hover:text-blue-800"
-            >
-              Forgot Password?
-            </p>
-          ) : (
-            <p className="text-right w-full text-sm text-blue-600 font-bold cursor-pointer ">
-              {" "}
-              Wait: {formatCountdown(countdown)}
-            </p>
-          )}
-        </div>
+        )}
+        <ReCAPTCHA
+          sitekey="6Ld7M3YqAAAAANCNShezYh2Jrz64TUMFk8xzq5-W"
+          onChange={captcha}
+        />
         <button
           onClick={() => login()}
           className="bg-blue-500 text-white font-semibold py-2 px-4 rounded hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
@@ -140,14 +170,14 @@ const Login = () => {
           Login
         </button>
         <span>
-          Don't have an account? {""}
+          Don't have an account?{" "}
           <span
             className="text-blue-600 underline cursor-pointer"
             onClick={() => navigate("/signup")}
           >
             Register
-          </span>
-          {""} Here.
+          </span>{" "}
+          Here.
         </span>
       </div>
     </div>

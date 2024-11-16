@@ -3,6 +3,7 @@ import logo from "../logo.svg";
 import "../App.css";
 import { useNavigate } from "react-router-dom";
 import ReCAPTCHA from "react-google-recaptcha";
+import LoadingOverlay from "./Loading";
 
 const SignUp = () => {
   const navigate = useNavigate();
@@ -26,6 +27,7 @@ const SignUp = () => {
   const [charCount, setCharCount] = useState(0);
   const [newUser, setNewUser] = useState({ email: "", password: "" });
   const [captchaToken, setCaptchaToken] = useState(null); // Captcha token state
+  const [loading, setLoading] = useState(false);
 
   const isPwMatch = () => {
     setDoMatch(pw1 === pw2);
@@ -42,6 +44,7 @@ const SignUp = () => {
   };
 
   const signUpFunction = async () => {
+    setLoading(true);
     if (email && captchaToken && pw1 === pw2 && pw1.length >= 8) {
       const response = await fetch("http://localhost:5000/signup", {
         method: "POST",
@@ -49,17 +52,21 @@ const SignUp = () => {
         body: JSON.stringify({ ...newUser, captchaToken }),
       });
       if (response.ok) {
-        alert("Account is registered!");
-        navigate("/login");
+        const message = await response.json();
+        alert(message);
+        setLoading(false);
       } else {
         const errorMessage = await response.text();
         alert(errorMessage);
+        setLoading(false);
       }
     } else {
       alert(
         "Complete the form and reCAPTCHA verification & Password at least 8."
       );
+      setLoading(false);
     }
+    setLoading(false);
   };
 
   const evaluatePasswordStrength = (pw) => {
@@ -149,6 +156,7 @@ const SignUp = () => {
 
   return (
     <div className="flex flex-row items-center justify-center min-h-screen bg-gray-50">
+      {loading && <LoadingOverlay />}
       <div className="App flex flex-col gap-3 w-[400px] shadow-lg p-10">
         <img src={logo} className="App-logo" alt="logo" />
         <h1 className="text-2xl">Sign Up</h1>

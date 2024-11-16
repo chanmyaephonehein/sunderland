@@ -32,6 +32,15 @@ app.use(express.json());
 
 const port = 5000;
 
+// Send password reset email
+const transporter = nodemailer.createTransport({
+  service: "Gmail", // or your preferred email service
+  auth: {
+    user: "sunderland239770741@gmail.com",
+    pass: "rwoo lmze itoz wnhe",
+  },
+});
+
 app.get("/", checkAuth, async (req, res) => {
   try {
     const userResult = await prisma.users.findFirst({
@@ -49,11 +58,32 @@ app.get("/", checkAuth, async (req, res) => {
 });
 
 app.post("/login", async (req, res) => {
-  const { email, password } = req.body;
-  const isValid = email && email.length > 0 && password && password.length > 7;
+  const { email, password, captchaToken } = req.body;
+  const isValid =
+    email &&
+    email.length > 0 &&
+    password &&
+    password.length > 7 &&
+    captchaToken;
   if (!isValid) return res.status(400).send("Bad Request");
+
+  // Verify reCAPTCHA token with Google
+  const secretKey = process.env.RECAPTCHA_SECRET_KEY;
+  const captchaUrl = `https://www.google.com/recaptcha/api/siteverify?secret=${secretKey}&response=${captchaToken}`;
+  const captchaResponse = await axios.post(captchaUrl);
+  if (!captchaResponse.data.success) {
+    return res.status(400).send({ error: "reCAPTCHA validation failed" });
+  }
+
   const isExist = await prisma.users.findFirst({ where: { email } });
   if (!isExist) return res.status(404).send("Not found the user");
+
+  //check if email is verify
+  const isVerify = await prisma.users.findFirst({
+    where: { email, verify: true },
+  });
+
+  if (!isVerify) return res.status(692).send("Email is not verify.");
 
   //check if account is locked
   const now = new Date();
@@ -113,32 +143,97 @@ app.post("/signup", async (req, res) => {
     return res
       .status(400)
       .send("Password must at least 8 and fill all the blank");
-  const isExist = await prisma.users.findFirst({ where: { email } });
-  if (isExist) return res.status(403).send("Email is already registered");
 
   // Verify reCAPTCHA token with Google
   const secretKey = process.env.RECAPTCHA_SECRET_KEY;
   const captchaUrl = `https://www.google.com/recaptcha/api/siteverify?secret=${secretKey}&response=${captchaToken}`;
+  const captchaResponse = await axios.post(captchaUrl);
+  if (!captchaResponse.data.success) {
+    return res.status(400).send({ error: "reCAPTCHA validation failed" });
+  }
 
+  const isExist = await prisma.users.findFirst({ where: { email } });
+  if (isExist) return res.status(403).send("Email is already registered");
+
+  const duplicate = await prisma.emailVerifications.findFirst({
+    where: { email },
+  });
+
+  if (duplicate) await prisma.emailVerifications.delete({ where: { email } });
   try {
-    const captchaResponse = await axios.post(captchaUrl);
-    if (!captchaResponse.data.success) {
-      return res.status(400).send({ error: "reCAPTCHA validation failed" });
-    }
+    const verificationToken = crypto.randomBytes(32).toString("hex");
+    const tokenExpiry = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
 
-    // Proceed with signup if reCAPTCHA is valid
+    // Save token temporarily in a verification table
+    await prisma.emailVerifications.create({
+      data: {
+        email,
+        password,
+        token: verificationToken,
+        expiresAt: tokenExpiry,
+      },
+    });
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const user = await prisma.users.create({
-      data: { email, password: hashedPassword },
-    });
-    await prisma.passwordHistory.create({
-      data: { userId: user.id, password: password },
-    });
-    return res.sendStatus(200);
+    // Send verification email
+    const verificationUrl = `http://localhost:3000/verify-email/${verificationToken}`;
+    const mailOptions = {
+      to: email,
+      from: "sunderland239770742@gmail.com",
+      subject: "Verify Your Email",
+      text: `Click the link to verify your email: ${verificationUrl}. The link expires in 15 minutes.`,
+    };
+
+    await transporter.sendMail(mailOptions);
+    res.status(200).send("Verification email sent. Please check your email.");
   } catch (err) {
     console.error("Error during signup:", err);
-    return res.status(500).send("Server error");
+    res.status(500).send("Server error");
+  }
+});
+
+app.post("/verify-email", async (req, res) => {
+  const { token } = req.body;
+
+  try {
+    const verificationRecord = await prisma.emailVerifications.findFirst({
+      where: { token, expiresAt: { gt: new Date() } },
+    });
+
+    if (!verificationRecord) {
+      return res.status(400).send("Invalid or expired verification link.");
+    }
+
+    // Create the user account
+    const hashedPassword = await bcrypt.hash(verificationRecord.password, 10);
+    const user = await prisma.users.create({
+      data: {
+        email: verificationRecord.email,
+        password: hashedPassword,
+        verify: true,
+      },
+    });
+
+    try {
+      const createHistory = await prisma.passwordHistory.create({
+        data: {
+          userId: user.id,
+          password: verificationRecord.password,
+        },
+      });
+      console.log("create", createHistory);
+    } catch (err) {
+      console.log(err);
+    }
+
+    // Clean up verification record
+    await prisma.emailVerifications.delete({
+      where: { id: verificationRecord.id },
+    });
+
+    res.status(200).send("Email verified and account created successfully!");
+  } catch (err) {
+    console.error("Error during email verification:", err);
+    res.status(500).send("Server error");
   }
 });
 
@@ -202,15 +297,6 @@ app.post("/forgot", async (req, res) => {
       data: {
         resetToken,
         resetTokenExpiry: tokenExpiry,
-      },
-    });
-
-    // Send password reset email
-    const transporter = nodemailer.createTransport({
-      service: "Gmail", // or your preferred email service
-      auth: {
-        user: "sunderland239770741@gmail.com",
-        pass: "rwoo lmze itoz wnhe",
       },
     });
 
@@ -290,6 +376,20 @@ app.post("/expiry", async (req, res) => {
   if (!isExist) return res.status(400).send("Invalid or expired token.");
   if (isExist) return res.status(200);
 });
+
+app.post("/valid-register-token", async (req, res) => {
+  const { token } = req.body;
+  const key = token;
+  if (!key) return res.status(400).send("Bad Request");
+  const verificationRecord = await prisma.emailVerifications.findFirst({
+    where: { token, expiresAt: { gt: new Date() } },
+  });
+
+  if (!verificationRecord) {
+    return res.status(400).send("Invalid or expired verification link.");
+  } else return res.status(200).send("OK");
+});
+
 app.listen(port, () => {
   console.log("Server is listening at port ", port);
 });

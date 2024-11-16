@@ -13,24 +13,34 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 model Users {
-  id                Int             @id @default(autoincrement())
-  email             String          @unique
-  password          String    
-  loginAttempts     Int             @default(0)
-  lockUntil         DateTime?       // nullable, only set when locked
-  createdAt         DateTime        @default(now())
-  updatedAt         DateTime        @default(now()) @updatedAt
-  resetToken        String?         // Token for password reset, nullable
-  resetTokenExpiry  DateTime?       // Expiry time for the reset token, nullable
-  PasswordHistory PasswordHistory[]
+  id                Int                @id @default(autoincrement())
+  email             String             @unique
+  password          String
+  loginAttempts     Int                @default(0)
+  lockUntil         DateTime?          // Nullable, only set when locked
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @default(now()) @updatedAt
+  resetToken        String?            // Token for password reset, nullable
+  resetTokenExpiry  DateTime?          // Expiry time for the reset token, nullable
+  PasswordHistory   PasswordHistory[]
+  verify            Boolean            @default(false)
 }
-
 
 model PasswordHistory {
   id             Int       @id @default(autoincrement())
   password       String
   userId         Int
-  users          Users       @relation(fields:[userId], references: [id])
-  createAt       DateTime  @default(now())
+  users          Users     @relation(fields: [userId], references: [id])
+  createdAt      DateTime  @default(now())
   updatedAt      DateTime  @default(now()) @updatedAt
 }
+
+model EmailVerifications {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  password  String
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+

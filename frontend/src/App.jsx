@@ -158,6 +158,7 @@ const App = () => {
       });
       if (response.ok) {
         alert("Password reset link has been sent to your email. Click OK!");
+        setCountdown(60);
       } else {
         alert("Error sending password reset email.");
       }
@@ -166,7 +167,6 @@ const App = () => {
       alert("An error occurred. Please try again later.");
     }
     setLoading(false);
-    setCountdown(60);
     localStorage.setItem("countdown", "60");
   };
 
