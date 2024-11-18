@@ -24,6 +24,8 @@ model Users {
   resetTokenExpiry  DateTime?          // Expiry time for the reset token, nullable
   PasswordHistory   PasswordHistory[]
   verify            Boolean            @default(false)
+  twoStepCode       Int                @default(0)// Token for 2 factor mail, nullable
+  codeExpiresAt     DateTime?          // Expriry time for the two steo code, nullable
 }
 
 model PasswordHistory {

@@ -75,6 +75,7 @@ app.post("/login", async (req, res) => {
     return res.status(400).send({ error: "reCAPTCHA validation failed" });
   }
 
+  // Check user existence
   const isExist = await prisma.users.findFirst({ where: { email } });
   if (!isExist) return res.status(404).send("Not found the user");
 
@@ -108,6 +109,7 @@ app.post("/login", async (req, res) => {
       data: { loginAttempts: isExist.loginAttempts + 1 },
     });
 
+    // Reset login attempts
     if (updateAttemps.loginAttempts === 5) {
       const lockUntil = new Date(now.getTime() + 5 * 60 * 1000); // lock for 5 minutes
       await prisma.users.update({
@@ -115,6 +117,7 @@ app.post("/login", async (req, res) => {
         data: { lockUntil, loginAttempts: 0 },
       });
     }
+
     const checkStatus = await prisma.users.findFirst({ where: { email } });
     return res
       .status(401)
@@ -126,13 +129,27 @@ app.post("/login", async (req, res) => {
             }`
       );
   } else {
+    // Generate and send verification code
+    const verificationCode = Math.floor(100000 + Math.random() * 900000); // 6-digit code
+    const expiresAt = new Date(now.getTime() + 10 * 60 * 1000); // expires in 10 minutes
+
     await prisma.users.update({
       where: { email },
-      data: { loginAttempts: 0, lockUntil: null },
+      data: { codeExpiresAt: expiresAt, twoStepCode: verificationCode },
     });
-    const user = { id: isExist.id, email: isExist.email };
-    const accessToken = jwt.sign(user, config.jwtSecret);
-    return res.status(200).send({ accessToken });
+
+    const mailOptions = {
+      from: process.env.EMAIL_USER,
+      to: email,
+      subject: "Your Login Verification Code",
+      text: `Your verification code is ${verificationCode}. It will expire in 10 minutes.`,
+    };
+
+    await transporter.sendMail(mailOptions);
+
+    res
+      .status(200)
+      .send("Verification code sent to your email. Please verify.");
   }
 });
 
@@ -245,10 +262,8 @@ app.put("/update-password", checkAuth, async (req, res) => {
     oldPassword.length > 7 &&
     newPassword &&
     newPassword.length > 7;
-  console.log(email, oldPassword, newPassword);
   if (!validPayload) return res.status(400).send("Bad Request");
   const hashNewPassword = await bcrypt.hash(newPassword, 10);
-  console.log(newPassword, hashNewPassword);
   const isExist = await prisma.users.findFirst({ where: { email } });
   if (!isExist) return res.status(404).send("User is not found");
   const correctPw = await bcrypt.compare(oldPassword, isExist.password);
@@ -368,7 +383,6 @@ app.post("/reset-password", async (req, res) => {
 
 app.post("/expiry", async (req, res) => {
   const { token } = req.body;
-  console.log(token);
   if (!token) return res.status(400).send("Bad Request");
   const isExist = await prisma.users.findFirst({
     where: { resetToken: token, resetTokenExpiry: { gt: new Date() } },
@@ -388,6 +402,26 @@ app.post("/valid-register-token", async (req, res) => {
   if (!verificationRecord) {
     return res.status(400).send("Invalid or expired verification link.");
   } else return res.status(200).send("OK");
+});
+
+app.post("/multi-factor", async (req, res) => {
+  const { dialogInput, email } = req.body;
+  const genCode = parseInt(dialogInput, 10);
+  const ifExpire = await prisma.users.findFirst({
+    where: { twoStepCode: genCode, codeExpiresAt: { gt: new Date() } },
+  });
+
+  if (!ifExpire) {
+    return res.status(400).send("Invalid or expired verification link.");
+  }
+
+  const updateUser = await prisma.users.update({
+    where: { email },
+    data: { loginAttempts: 0, lockUntil: null },
+  });
+  const user = { id: updateUser.id, email: updateUser.email };
+  const accessToken = jwt.sign(user, config.jwtSecret);
+  return res.status(200).json({ accessToken });
 });
 
 app.listen(port, () => {

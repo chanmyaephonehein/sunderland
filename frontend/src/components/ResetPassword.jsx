@@ -60,7 +60,6 @@ const ResetPassword = () => {
       } else {
         const errorMessage = await response.text();
         alert(errorMessage);
-        navigate("/");
       }
     } catch (error) {
       setError("Failed to reset password. Please try again.");

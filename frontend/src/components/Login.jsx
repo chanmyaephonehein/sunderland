@@ -12,26 +12,36 @@ const Login = () => {
   const [user, setUser] = useState({ email: "", password: "" });
   const [countdown, setCountdown] = useState(0);
   const [captchaToken, setCaptchaToken] = useState(null); // Captcha token state
-  const [showForgotPassword, setShowForgotPassword] = useState(false); // State for dialog visibility
+  const [showForgotPassword, setShowForgotPassword] = useState(false); // Forgot Password dialog visibility
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false); // Success dialog visibility
+  const [dialogInput, setDialogInput] = useState(""); // Input field in the success dialog
 
   const login = async () => {
     const isValid =
       user.email && user.password && user.password.length > 7 && captchaToken;
     if (!isValid) return alert("Fill email, password and captcha");
-    const response = await fetch("http://localhost:5000/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...user, captchaToken }),
-    });
-    if (response.ok) {
-      const responseData = await response.json();
-      const accessToken = responseData.accessToken;
-      localStorage.setItem("accessToken", accessToken);
-      navigate("/");
-    } else {
-      const errorMessage = await response.text();
-      alert(errorMessage);
+
+    setLoading(true);
+    try {
+      const response = await fetch("http://localhost:5000/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...user, captchaToken }),
+      });
+      if (response.ok) {
+        const message = await response.text();
+        alert(message);
+
+        setShowSuccessDialog(true); // Open success dialog
+      } else {
+        const errorMessage = await response.text();
+        alert(errorMessage);
+      }
+    } catch (error) {
+      console.error("Error:", error);
+      alert("An error occurred. Please try again.");
     }
+    setLoading(false);
   };
 
   const handleSendMail = async () => {
@@ -56,6 +66,25 @@ const Login = () => {
     }
     setLoading(false);
     localStorage.setItem("countdown", "60");
+  };
+
+  const confirmCode = async () => {
+    if (dialogInput && user.email) {
+      const response = await fetch(`http://localhost:5000/multi-factor`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ dialogInput, email: user.email }),
+      });
+      const responseData = await response.json();
+      if (response.ok) {
+        alert("Login Successful");
+        const accessToken = responseData.accessToken;
+        localStorage.setItem("accessToken", accessToken);
+        navigate("/");
+      } else {
+        alert(responseData);
+      }
+    }
   };
 
   const captcha = (value) => {
@@ -86,16 +115,16 @@ const Login = () => {
 
   return (
     <div className="flex flex-row items-center justify-center min-h-screen bg-gray-50">
-      {loading && <LoadingOverlay />}{" "}
+      {loading && <LoadingOverlay />}
       <div className="App flex flex-col gap-5 w-[400px] shadow-lg p-10">
         <img src={logo} className="App-logo" alt="logo" />
-        <h1 className="text-2xl">Login</h1>{" "}
+        <h1 className="text-2xl">Login</h1>
         <div>
           <p className="flex justify-start text-gray-500 text-sm pl-1">Email</p>
           <input
             onChange={(evt) => setUser({ ...user, email: evt.target.value })}
             type="email"
-            className=" border-gray-800 rounded-sm p-2 focus:outline-none focus:ring-2 border-2 focus:ring-blue-500 w-full"
+            className="border-gray-800 rounded-sm p-2 focus:outline-none focus:ring-2 border-2 focus:ring-blue-500 w-full"
             placeholder="Enter your email"
           />
         </div>
@@ -106,7 +135,7 @@ const Login = () => {
           <input
             onChange={(evt) => setUser({ ...user, password: evt.target.value })}
             type={showPassword ? "text" : "password"}
-            className=" border-gray-800 rounded-sm p-2 focus:outline-none focus:ring-2 border-2 focus:ring-blue-500 w-full"
+            className="border-gray-800 rounded-sm p-2 focus:outline-none focus:ring-2 border-2 focus:ring-blue-500 w-full"
             placeholder="Enter your password"
           />
           <button
@@ -118,7 +147,7 @@ const Login = () => {
           </button>
         </div>
         <p
-          onClick={() => setShowForgotPassword(true)} // Open the dialog
+          onClick={() => setShowForgotPassword(true)}
           className="text-right w-full text-sm text-blue-600 font-bold cursor-pointer underline hover:text-blue-800"
         >
           Forgot Password?
@@ -132,12 +161,12 @@ const Login = () => {
                   setUser({ ...user, email: evt.target.value })
                 }
                 type="email"
-                className=" border-gray-800 rounded-sm p-2 mb-4 focus:outline-none focus:ring-2 border-2 focus:ring-blue-500 w-full"
+                className="border-gray-800 rounded-sm p-2 mb-4 focus:outline-none focus:ring-2 border-2 focus:ring-blue-500 w-full"
                 placeholder="Enter your email"
               />
               {countdown === 0 ? (
                 <button
-                  onClick={handleSendMail} // Send mail function
+                  onClick={handleSendMail}
                   className="bg-blue-500 text-white font-semibold py-2 px-4 rounded hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50 w-full"
                 >
                   Send Reset Link
@@ -151,11 +180,42 @@ const Login = () => {
                 onClick={() => {
                   setShowForgotPassword(false);
                   setUser({ ...user, email: "" });
-                }} // Close the dialog
+                }}
                 className="mt-4 text-gray-500 underline w-full text-sm"
               >
                 Cancel
               </button>
+            </div>
+          </div>
+        )}
+        {showSuccessDialog && (
+          <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
+            <div className="bg-white p-6 rounded shadow-lg w-[300px]">
+              <h2 className="text-xl mb-4">Success!</h2>
+              <p className="mb-4">Please provide additional input:</p>
+              <input
+                type="text"
+                value={dialogInput}
+                onChange={(e) => setDialogInput(e.target.value)}
+                className="border-gray-800 rounded-sm p-2 focus:outline-none focus:ring-2 border-2 focus:ring-blue-500 w-full"
+                placeholder="Enter details"
+              />
+              <div className="flex justify-between mt-4">
+                <button
+                  onClick={() => setShowSuccessDialog(false)}
+                  className="bg-gray-500 text-white font-semibold py-2 px-4 rounded hover:bg-gray-600"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    confirmCode();
+                  }}
+                  className="bg-blue-500 text-white font-semibold py-2 px-4 rounded hover:bg-blue-600"
+                >
+                  Confirm
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -164,20 +224,16 @@ const Login = () => {
           onChange={captcha}
         />
         <button
-          onClick={() => login()}
+          onClick={login}
           className="bg-blue-500 text-white font-semibold py-2 px-4 rounded hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
         >
           Login
         </button>
         <span>
           Don't have an account?{" "}
-          <span
-            className="text-blue-600 underline cursor-pointer"
-            onClick={() => navigate("/signup")}
-          >
-            Register
-          </span>{" "}
-          Here.
+          <a href="/signup" className="font-semibold text-blue-500">
+            Sign up
+          </a>
         </span>
       </div>
     </div>
