@@ -76,6 +76,7 @@ const Login = () => {
         body: JSON.stringify({ dialogInput, email: user.email }),
       });
       const responseData = await response.json();
+
       if (response.ok) {
         alert("Login Successful");
         const accessToken = responseData.accessToken;

@@ -21,6 +21,7 @@ const App = () => {
   const [sym, setSym] = useState(false);
   const [charCount, setCharCount] = useState(0);
   const navigate = useNavigate();
+  const [showDialog, setShowDialog] = useState(false);
 
   const fetchData = async (accessToken) => {
     if (!accessToken) return;
@@ -148,6 +149,10 @@ const App = () => {
     }
   };
   const handleForgotPassword = async () => {
+    setShowDialog(true);
+  };
+
+  const handleDialogConfirm = async () => {
     if (countdown > 0) return;
     setLoading(true);
     try {
@@ -168,6 +173,7 @@ const App = () => {
     }
     setLoading(false);
     localStorage.setItem("countdown", "60");
+    setShowDialog(false);
   };
 
   useEffect(() => {
@@ -209,7 +215,15 @@ const App = () => {
     <div className="flex flex-col items-center">
       {loading && <LoadingOverlay />} {/* Show loading overlay when loading */}
       {/* Rest of your SignUp component code */}
-      <div className="flex flex-col justify-center items-center m-10">
+      <div className="flex justify-end w-full">
+        <button
+          onClick={logout}
+          className="bg-red-500 text-white font-semibold py-2 m-6 px-4 rounded hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+        >
+          Logout
+        </button>
+      </div>
+      <div className="flex flex-col justify-center items-center ">
         <p className="font-bold text-3xl text-blue-600">Welcome To Home Page</p>
       </div>
       <div className="gap-6 shadow-lg w-[450px] h-[550px] flex flex-col items-center text-lg p-6">
@@ -255,22 +269,7 @@ const App = () => {
             {show ? "Hide" : "Show"}
           </button>
         </div>
-        {countdown === 0 ? (
-          <p className="text-center w-full text-sm text-blue-600 font-bold cursor-pointer ">
-            Forgot Password?{" "}
-            <p
-              className="underline hover:text-blue-800"
-              onClick={handleForgotPassword}
-            >
-              Click here to send reset email.
-            </p>
-          </p>
-        ) : (
-          <p className="text-center w-full text-sm text-blue-600 font-bold cursor-pointer ">
-            {" "}
-            Resend After: {formatCountdown(countdown)}
-          </p>
-        )}
+
         <div className="flex flex-col justify-between items-center">
           {charCount > 0 && (
             <p className={`font-semibold text-lg ${strength.colorClass}`}>
@@ -311,13 +310,47 @@ const App = () => {
         >
           Update Password
         </button>
-        <button
-          onClick={logout}
-          className="bg-red-500 text-white font-semibold py-2 px-4 rounded hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
-        >
-          Logout
-        </button>
-      </div>
+        {countdown === 0 ? (
+          <p className="text-center w-full text-sm text-blue-600 font-bold cursor-pointer ">
+            Forgot Password?{" "}
+            <p
+              className="underline hover:text-blue-800"
+              onClick={handleForgotPassword}
+            >
+              Click here to send reset email.
+            </p>
+          </p>
+        ) : (
+          <p className="text-center w-full text-sm text-blue-600 font-bold cursor-pointer ">
+            {" "}
+            Resend After: {formatCountdown(countdown)}
+          </p>
+        )}
+      </div>{" "}
+      {/* Dialog */}
+      {showDialog && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center">
+          <div className="bg-white rounded-lg p-6 shadow-lg">
+            <p className="text-lg mb-4">
+              Are you sure you want to send the reset email?
+            </p>
+            <div className="flex justify-end gap-4">
+              <button
+                onClick={() => setShowDialog(false)}
+                className="bg-gray-300 text-gray-800 py-2 px-4 rounded hover:bg-gray-400"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDialogConfirm}
+                className="bg-blue-500 text-white py-2 px-4 rounded hover:bg-blue-600"
+              >
+                Confirm
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
