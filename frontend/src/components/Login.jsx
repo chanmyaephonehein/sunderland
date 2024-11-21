@@ -75,15 +75,17 @@ const Login = () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ dialogInput, email: user.email }),
       });
-      const responseData = await response.json();
 
       if (response.ok) {
         alert("Login Successful");
+        const responseData = await response.json();
         const accessToken = responseData.accessToken;
         localStorage.setItem("accessToken", accessToken);
         navigate("/");
       } else {
-        alert(responseData);
+        console.log("lee");
+        const message = await response.text();
+        alert(message);
       }
     }
   };

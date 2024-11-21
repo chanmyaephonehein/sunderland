@@ -34,6 +34,7 @@ const App = () => {
         setStoredData(data);
       } else {
         console.error("Failed to fetch user data, status:", response.status);
+        navigate("/login");
       }
     } catch (error) {
       console.error("Error fetching user data:", error);
@@ -140,6 +141,7 @@ const App = () => {
         setNewPw("");
         const successMessage = await response.text();
         alert(successMessage);
+        logout();
       } else {
         const errorMessage = await response.text();
         alert(errorMessage);

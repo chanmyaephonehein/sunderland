@@ -56,6 +56,7 @@ const ResetPassword = () => {
       if (response.ok) {
         const message = await response.text();
         alert(message);
+        localStorage.removeItem("accessToken");
         navigate("/login"); // Redirect to login page
       } else {
         const errorMessage = await response.text();

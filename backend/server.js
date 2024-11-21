@@ -256,6 +256,8 @@ app.post("/verify-email", async (req, res) => {
 
 app.put("/update-password", checkAuth, async (req, res) => {
   const { email, oldPassword, newPassword } = req.body;
+
+  // Validate input payload
   const validPayload =
     email.length > 0 &&
     oldPassword &&
@@ -263,9 +265,28 @@ app.put("/update-password", checkAuth, async (req, res) => {
     newPassword &&
     newPassword.length > 7;
   if (!validPayload) return res.status(400).send("Bad Request");
-  const hashNewPassword = await bcrypt.hash(newPassword, 10);
   const isExist = await prisma.users.findFirst({ where: { email } });
   if (!isExist) return res.status(404).send("User is not found");
+
+  const now = new Date();
+
+  // Check daily update limit
+  if (isExist.passwordResetUntil && now > isExist.passwordResetUntil) {
+    // Reset the limit for the new day
+    await prisma.users.update({
+      where: { id: isExist.id },
+      data: {
+        passwordReset: 0,
+        passwordResetUntil: null,
+      },
+    });
+    isExist.passwordReset = 0; // Reset in-memory reference for the current session
+  }
+
+  if (isExist.passwordReset >= 3) {
+    return res.status(429).send("Password change limit reached for today.");
+  }
+
   const correctPw = await bcrypt.compare(oldPassword, isExist.password);
   if (!correctPw) {
     return res.status(401).send("Wrong Current Password. Try again");
@@ -280,15 +301,36 @@ app.put("/update-password", checkAuth, async (req, res) => {
       .status(400)
       .send("This New Password is used before. Try another!");
   } else {
+    const hashNewPassword = await bcrypt.hash(newPassword, 10);
+
+    // Save new password in history
     await prisma.passwordHistory.create({
       data: { userId: isExist.id, password: newPassword },
     });
 
+    // Update user's password and increment the reset count
     await prisma.users.update({
       where: { email },
-      data: { password: hashNewPassword },
+      data: {
+        password: hashNewPassword,
+        passwordReset: isExist.passwordReset + 1,
+        passwordResetUntil:
+          isExist.passwordResetUntil ||
+          new Date(now.setUTCHours(23, 59, 59, 999)), // Set expiry to end of the day
+      },
     });
   }
+
+  // Send email notification
+  const mailOptions = {
+    from: process.env.EMAIL_USER,
+    to: email,
+    subject: "Changed Password",
+    text: `Password is changed successfully!`,
+  };
+
+  await transporter.sendMail(mailOptions);
+
   return res.status(200).send("Password is changed successfully!");
 });
 
@@ -298,10 +340,6 @@ app.post("/forgot", async (req, res) => {
   const isExist = await prisma.users.findFirst({ where: { email } });
   if (!isExist) return res.status(404).send("No user found");
   try {
-    // Check if user exists
-    const user = await prisma.users.findFirst({ where: { email } });
-    if (!user) return res.status(404).send("User not found");
-
     // Generate a password reset token
     const resetToken = crypto.randomBytes(32).toString("hex");
     const tokenExpiry = new Date(Date.now() + 300000); // Token valid for 5 minutes
@@ -340,7 +378,27 @@ app.post("/reset-password", async (req, res) => {
   });
   if (!isExist) return res.status(404).send("User is not found");
   try {
-    // Find the user by reset token
+    // Find the user by reset
+
+    const now = new Date();
+
+    // Check daily reset limit
+    if (isExist.passwordResetUntil && now > user.passwordResetUntil) {
+      // Reset the limit for the new day
+      await prisma.users.update({
+        where: { id: user.id },
+        data: {
+          passwordReset: 0,
+          passwordResetUntil: null,
+        },
+      });
+      isExist.passwordReset = 0; // Reset in-memory reference for the current session
+    }
+
+    if (isExist.passwordReset >= 3) {
+      return res.status(429).send("Password reset limit reached for today.");
+    }
+
     const user = await prisma.users.findFirst({
       where: { resetToken: token, resetTokenExpiry: { gt: new Date() } }, // Check token expiry
     });
@@ -370,8 +428,22 @@ app.post("/reset-password", async (req, res) => {
           password: hashedPassword,
           resetToken: null,
           resetTokenExpiry: null,
+          passwordReset: user.passwordReset + 1,
+          passwordResetUntil:
+            user.passwordResetUntil ||
+            new Date(now.setUTCHours(23, 59, 59, 999)), // Set expiry to the end of the current day
         },
       });
+
+      // Send email confirmation
+      const mailOptions = {
+        from: process.env.EMAIL_USER,
+        to: user.email,
+        subject: "Reset Password",
+        text: `Password is just reset successfully`,
+      };
+
+      await transporter.sendMail(mailOptions);
 
       res.status(200).send("Password reset successful!");
     }
@@ -408,9 +480,16 @@ app.post("/multi-factor", async (req, res) => {
   const { dialogInput, email } = req.body;
   const genCode = parseInt(dialogInput, 10);
   const ifExpire = await prisma.users.findFirst({
-    where: { twoStepCode: genCode, codeExpiresAt: { gt: new Date() } },
+    where: { email, twoStepCode: genCode, codeExpiresAt: { gt: new Date() } },
   });
 
+  const validCode = await prisma.users.findFirst({
+    where: { email, twoStepCode: genCode },
+  });
+
+  if (!validCode) {
+    return res.status(401).send("Your code is wrong! Try again");
+  }
   if (!ifExpire) {
     return res.status(400).send("Invalid or expired verification link.");
   }
@@ -421,6 +500,16 @@ app.post("/multi-factor", async (req, res) => {
   });
   const user = { id: updateUser.id, email: updateUser.email };
   const accessToken = jwt.sign(user, config.jwtSecret);
+
+  const mailOptions = {
+    from: process.env.EMAIL_USER,
+    to: email,
+    subject: "Login Account",
+    text: `Your account is just log in!`,
+  };
+
+  await transporter.sendMail(mailOptions);
+
   return res.status(200).json({ accessToken });
 });
 
