@@ -16,6 +16,7 @@ const App = () => {
     colorClass: "",
   });
 
+  const [editName, setEditName] = useState("");
   const [upper, setUpper] = useState(false);
   const [lower, setLower] = useState(false);
   const [num, setNum] = useState(false);
@@ -151,6 +152,31 @@ const App = () => {
       alert("Fill both old and new password with at least 8.");
     }
   };
+
+  const updateName = async () => {
+    if (editName.length > 0) {
+      setStoredData({ ...storedData, name: editName });
+      const response = await fetch("http://localhost:5000/update-name", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ email: storedData.email, name: editName }),
+      });
+      setEditName("");
+
+      if (response.ok) {
+        const message = await response.text();
+        alert(message);
+      } else {
+        const errorMessage = await response.text();
+        alert(errorMessage);
+      }
+    } else {
+      alert("Fill the name input area to proceed");
+    }
+  };
   const handleForgotPassword = async () => {
     setShowDialog(true);
   };
@@ -226,26 +252,35 @@ const App = () => {
           Logout
         </button>
       </div>
-      <div className="flex flex-col justify-center items-center ">
-        <p className="font-bold text-3xl text-blue-600">Welcome To Home Page</p>
+      <div className="flex flex-col justify-center items-center gap-4">
+        <p className="font-bold text-3xl text-blue-600">
+          Welcome To Home Page,{" "}
+          <span className="text-green-500">
+            {accessToken && storedData.name ? storedData.name : "No name yet."}
+          </span>{" "}
+        </p>
+        <p className=" text-md text-blue-600">
+          You are logged in with,{" "}
+          <span className="text-green-500">
+            {accessToken && storedData.email}
+          </span>
+        </p>
+      </div>{" "}
+      <div className="flex mt-4 gap-2">
+        <input
+          value={editName}
+          className="border border-gray-800 rounded-sm p-2 focus:outline-none focus:ring-2 focus:ring-blue-500 w-full"
+          placeholder="Update name here"
+          onChange={(e) => setEditName(e.target.value)}
+        />
+        <button
+          onClick={updateName}
+          className="bg-blue-500 text-white font-semibold py-2 px-4 rounded hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50"
+        >
+          Update
+        </button>
       </div>
       <div className="gap-3 shadow-lg w-[450px] h-[550px] flex flex-col items-center text-lg p-6">
-        <div>
-          <p>
-            <span>Email: </span>
-            <span className="text-blue-500">
-              {accessToken && storedData.email}
-            </span>
-          </p>
-          <p>
-            <span>Name: </span>
-            <span className="text-blue-500">
-              {accessToken && storedData.name
-                ? storedData.name
-                : "No name yet."}
-            </span>
-          </p>
-        </div>
         <div className="relative w-full">
           <p className="flex justify-start text-gray-500 text-sm pl-1">
             Current Password
