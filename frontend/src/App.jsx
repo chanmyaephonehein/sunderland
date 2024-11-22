@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import LoadingOverlay from "./components/Loading";
+// import { FaEdit, FaCheck, FaTimes } from "react-icons/fa";
 
 const App = () => {
   const [loading, setLoading] = useState(false);
-  const [storedData, setStoredData] = useState({ email: "" });
+  const [storedData, setStoredData] = useState({ email: "", name: "" });
   const accessToken = localStorage.getItem("accessToken");
   const [oldPw, setOldPw] = useState("");
   const [newPw, setNewPw] = useState("");
@@ -228,13 +229,23 @@ const App = () => {
       <div className="flex flex-col justify-center items-center ">
         <p className="font-bold text-3xl text-blue-600">Welcome To Home Page</p>
       </div>
-      <div className="gap-6 shadow-lg w-[450px] h-[550px] flex flex-col items-center text-lg p-6">
-        <p>
-          <span>User: </span>
-          <span className="text-blue-500">
-            {accessToken && storedData.email}
-          </span>
-        </p>
+      <div className="gap-3 shadow-lg w-[450px] h-[550px] flex flex-col items-center text-lg p-6">
+        <div>
+          <p>
+            <span>Email: </span>
+            <span className="text-blue-500">
+              {accessToken && storedData.email}
+            </span>
+          </p>
+          <p>
+            <span>Name: </span>
+            <span className="text-blue-500">
+              {accessToken && storedData.name
+                ? storedData.name
+                : "No name yet."}
+            </span>
+          </p>
+        </div>
         <div className="relative w-full">
           <p className="flex justify-start text-gray-500 text-sm pl-1">
             Current Password
@@ -274,12 +285,12 @@ const App = () => {
 
         <div className="flex flex-col justify-between items-center">
           {charCount > 0 && (
-            <p className={`font-semibold text-lg ${strength.colorClass}`}>
+            <p className={`font-semibold text-sm ${strength.colorClass}`}>
               {strength.message}
             </p>
           )}
-          <span>{charCount} characters containing:</span>
-          <div className="flex gap-3">
+          <span className="text-sm">{charCount} characters containing:</span>
+          <div className="flex gap-3 text-sm">
             <p
               className={
                 lower ? "text-green-500 font-semibold" : "text-gray-500"

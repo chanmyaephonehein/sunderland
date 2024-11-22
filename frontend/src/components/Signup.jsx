@@ -11,6 +11,7 @@ const SignUp = () => {
   const togglePasswordVisibility = () => {
     setShowPassword((prev) => !prev);
   };
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [pw1, setPw1] = useState("");
   const [pw2, setPw2] = useState("");
@@ -25,7 +26,7 @@ const SignUp = () => {
   const [num, setNum] = useState(false);
   const [sym, setSym] = useState(false);
   const [charCount, setCharCount] = useState(0);
-  const [newUser, setNewUser] = useState({ email: "", password: "" });
+  const [newUser, setNewUser] = useState({ name: "", email: "", password: "" });
   const [captchaToken, setCaptchaToken] = useState(null); // Captcha token state
   const [loading, setLoading] = useState(false);
 
@@ -33,6 +34,10 @@ const SignUp = () => {
     setDoMatch(pw1 === pw2);
   };
 
+  const forName = (name) => {
+    setName(name);
+    setNewUser({ ...newUser, name });
+  };
   const forEmail = (email) => {
     setEmail(email);
     setNewUser({ ...newUser, email });
@@ -43,8 +48,21 @@ const SignUp = () => {
     setNewUser({ ...newUser, password: pw1 });
   };
 
+  const validateEmailFormat = (email) => {
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    return emailRegex.test(email);
+  };
+
   const signUpFunction = async () => {
     setLoading(true);
+
+    // Validate email format
+    if (!validateEmailFormat(email)) {
+      alert("Invalid email format. Please enter a valid email.");
+      setLoading(false);
+      return;
+    }
+
     if (email && captchaToken && pw1 === pw2 && pw1.length >= 8) {
       const response = await fetch("http://localhost:5000/signup", {
         method: "POST",
@@ -52,7 +70,7 @@ const SignUp = () => {
         body: JSON.stringify({ ...newUser, captchaToken }),
       });
       if (response.ok) {
-        const message = await response.json();
+        const message = await response.text();
         alert(message);
         setLoading(false);
       } else {
@@ -160,6 +178,15 @@ const SignUp = () => {
       <div className="App flex flex-col gap-3 w-[400px] shadow-lg p-10">
         <img src={logo} className="App-logo" alt="logo" />
         <h1 className="text-2xl">Sign Up</h1>
+        <div>
+          <p className="flex justify-start text-gray-500 text-sm pl-1">Name</p>
+          <input
+            onChange={(evt) => forName(evt.target.value)}
+            type="text"
+            className="border-2 border-gray-800 rounded-sm p-2 focus:outline-none focus:ring-2 focus:ring-blue-500 w-full"
+            placeholder="Enter your name"
+          />
+        </div>
         <div>
           <p className="flex justify-start text-gray-500 text-sm pl-1">Email</p>
           <input

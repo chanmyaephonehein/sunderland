@@ -41,6 +41,11 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+const validateEmailFormat = (email) => {
+  const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+  return emailRegex.test(email);
+};
+
 app.get("/", checkAuth, async (req, res) => {
   try {
     const userResult = await prisma.users.findFirst({
@@ -50,7 +55,7 @@ app.get("/", checkAuth, async (req, res) => {
     if (!userResult) {
       return res.status(404).json({ message: "User not found" });
     }
-    return res.send({ email: userResult.email }); // Responds with JSON format
+    return res.send({ email: userResult.email, name: userResult.name }); // Responds with JSON format
   } catch (error) {
     console.error("Error fetching user data:", error);
     return res.status(500).json({ message: "Server error" });
@@ -59,6 +64,12 @@ app.get("/", checkAuth, async (req, res) => {
 
 app.post("/login", async (req, res) => {
   const { email, password, captchaToken } = req.body;
+
+  // Check email format
+  if (!validateEmailFormat(email)) {
+    return res.status(400).send("Invalid email format.");
+  }
+
   const isValid =
     email &&
     email.length > 0 &&
@@ -154,7 +165,13 @@ app.post("/login", async (req, res) => {
 });
 
 app.post("/signup", async (req, res) => {
-  const { email, password, captchaToken } = req.body;
+  const { name, email, password, captchaToken } = req.body;
+
+  // Check email format
+  if (!validateEmailFormat(email)) {
+    return res.status(400).send("Invalid email format.");
+  }
+
   const isValid = email && password && password.length > 7 && captchaToken;
   if (!isValid)
     return res
@@ -170,7 +187,10 @@ app.post("/signup", async (req, res) => {
   }
 
   const isExist = await prisma.users.findFirst({ where: { email } });
-  if (isExist) return res.status(403).send("Email is already registered");
+  if (isExist)
+    return res
+      .status(403)
+      .send("Email is already registered by other user. Try another email.");
 
   const duplicate = await prisma.emailVerifications.findFirst({
     where: { email },
@@ -184,6 +204,7 @@ app.post("/signup", async (req, res) => {
     // Save token temporarily in a verification table
     await prisma.emailVerifications.create({
       data: {
+        name: name || "",
         email,
         password,
         token: verificationToken,
@@ -201,10 +222,12 @@ app.post("/signup", async (req, res) => {
     };
 
     await transporter.sendMail(mailOptions);
-    res.status(200).send("Verification email sent. Please check your email.");
+    return res
+      .status(200)
+      .send("Verification email sent. Please check your email.");
   } catch (err) {
     console.error("Error during signup:", err);
-    res.status(500).send("Server error");
+    return res.status(500).send("Server error");
   }
 });
 
@@ -224,6 +247,7 @@ app.post("/verify-email", async (req, res) => {
     const hashedPassword = await bcrypt.hash(verificationRecord.password, 10);
     const user = await prisma.users.create({
       data: {
+        name: verificationRecord.name || "",
         email: verificationRecord.email,
         password: hashedPassword,
         verify: true,
@@ -332,6 +356,18 @@ app.put("/update-password", checkAuth, async (req, res) => {
   await transporter.sendMail(mailOptions);
 
   return res.status(200).send("Password is changed successfully!");
+});
+
+app.put("/update-name", checkAuth, async (req, res) => {
+  const { email, name } = req.body;
+  const validPayload = email && email.length > 0 && name && name.length;
+  if (!validPayload) return res.status(400).send("Bad Request");
+
+  const isExist = await prisma.users.findFirst({ where: { email } });
+  if (!isExist) return res.status(404).send("User is not found");
+
+  await prisma.users.update({ where: { email }, data: { name } });
+  return res.status(200).send("Name is changed successfully.");
 });
 
 // Add a new endpoint for password reset request

@@ -16,7 +16,17 @@ const Login = () => {
   const [showSuccessDialog, setShowSuccessDialog] = useState(false); // Success dialog visibility
   const [dialogInput, setDialogInput] = useState(""); // Input field in the success dialog
 
+  const validateEmailFormat = (email) => {
+    const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+    return emailRegex.test(email);
+  };
   const login = async () => {
+    // Validate email format
+    if (!validateEmailFormat(user.email)) {
+      alert("Invalid email format. Please enter a valid email.");
+      return;
+    }
+
     const isValid =
       user.email && user.password && user.password.length > 7 && captchaToken;
     if (!isValid) return alert("Fill email, password and captcha");

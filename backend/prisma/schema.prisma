@@ -13,23 +13,22 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 model Users {
-  id                Int                @id @default(autoincrement())
-  email             String             @unique
-  password          String
-  loginAttempts     Int                @default(0)
-  lockUntil         DateTime?          // Nullable, only set when locked
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @default(now()) @updatedAt
-  resetToken        String?            // Token for password reset, nullable
-  resetTokenExpiry  DateTime?          // Expiry time for the reset token, nullable
-  PasswordHistory   PasswordHistory[]
-  verify            Boolean            @default(false)
-  twoStepCode       Int                @default(0)// Token for 2 factor mail, nullable
-  codeExpiresAt     DateTime?          // Expriry time for the two steo code, nullable
-
-  passwordReset         Int                @default(0)
-  passwordResetUntil    DateTime?          // Expiry time for daily password reset limit
- 
+  id                  Int                @id @default(autoincrement())
+  name                String?
+  email               String             @unique
+  password            String
+  loginAttempts       Int                @default(0)
+  lockUntil           DateTime?          // Nullable, only set when locked
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @default(now()) @updatedAt
+  resetToken          String?            // Token for password reset, nullable
+  resetTokenExpiry    DateTime?          // Expiry time for the reset token, nullable
+  PasswordHistory     PasswordHistory[]
+  verify              Boolean            @default(false)
+  twoStepCode         Int                @default(0)// Token for 2 factor mail, nullable
+  codeExpiresAt       DateTime?          // Expriry time for the two steo code, nullable
+  passwordReset       Int                @default(0)
+  passwordResetUntil  DateTime?          // Expiry time for daily password reset limit
 }
 
 model PasswordHistory {
@@ -43,6 +42,7 @@ model PasswordHistory {
 
 model EmailVerifications {
   id        Int      @id @default(autoincrement())
+  name      String?
   email     String   @unique
   password  String
   token     String   @unique
