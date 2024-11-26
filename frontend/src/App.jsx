@@ -1,30 +1,31 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import LoadingOverlay from "./components/Loading";
-// import { FaEdit, FaCheck, FaTimes } from "react-icons/fa";
 
 const App = () => {
-  const [loading, setLoading] = useState(false);
-  const [storedData, setStoredData] = useState({ email: "", name: "" });
-  const accessToken = localStorage.getItem("accessToken");
-  const [oldPw, setOldPw] = useState("");
-  const [newPw, setNewPw] = useState("");
-  const [show, setShow] = useState(false);
+  // State hooks for various pieces of state
+  const [loading, setLoading] = useState(false); // For loading state (e.g., when fetching data)
+  const [storedData, setStoredData] = useState({ email: "", name: "" }); // For storing user data
+  const accessToken = localStorage.getItem("accessToken"); // Fetch the stored access token from localStorage
+  const [oldPw, setOldPw] = useState(""); // For storing the old password
+  const [newPw, setNewPw] = useState(""); // For storing the new password
+  const [show, setShow] = useState(false); // For toggling password visibility
   const [strength, setStrength] = useState({
     score: 0,
     message: "",
     colorClass: "",
-  });
+  }); // For storing password strength details
 
-  const [editName, setEditName] = useState("");
-  const [upper, setUpper] = useState(false);
-  const [lower, setLower] = useState(false);
-  const [num, setNum] = useState(false);
-  const [sym, setSym] = useState(false);
-  const [charCount, setCharCount] = useState(0);
-  const navigate = useNavigate();
-  const [showDialog, setShowDialog] = useState(false);
+  const [editName, setEditName] = useState(""); // For editing the user's name
+  const [upper, setUpper] = useState(false); // For checking uppercase criteria for password strength
+  const [lower, setLower] = useState(false); // For checking lowercase criteria for password strength
+  const [num, setNum] = useState(false); // For checking number criteria for password strength
+  const [sym, setSym] = useState(false); // For checking symbol criteria for password strength
+  const [charCount, setCharCount] = useState(0); // For storing password character count
+  const navigate = useNavigate(); // For navigation between routes
+  const [showDialog, setShowDialog] = useState(false); // For showing dialog on password reset
 
+  // Fetch user data from the server
   const fetchData = async (accessToken) => {
     if (!accessToken) return;
     try {
@@ -32,30 +33,31 @@ const App = () => {
         headers: { Authorization: `Bearer ${accessToken}` },
       });
       if (response.ok) {
-        const data = await response.json();
-        setStoredData(data);
+        const data = await response.json(); // Parse the response data
+        setStoredData(data); // Set the fetched data to the state
       } else {
         console.error("Failed to fetch user data, status:", response.status);
-        navigate("/login");
+        navigate("/login"); // Navigate to login if the request fails
       }
     } catch (error) {
       console.error("Error fetching user data:", error);
     }
   };
 
+  // Evaluate the password strength based on various criteria
   const evaluatePasswordStrength = (pw) => {
-    let score = 0;
+    let score = 0; // Initial score
     const lengthCriteria = pw.length >= 8;
-    const upperCriteria = /[A-Z]/.test(pw);
-    const lowerCriteria = /[a-z]/.test(pw);
-    const numberCriteria = /[0-9]/.test(pw);
-    const symbolCriteria = /[@$!%*?&#]/.test(pw);
+    const upperCriteria = /[A-Z]/.test(pw); // Check if the password contains uppercase letters
+    const lowerCriteria = /[a-z]/.test(pw); // Check if the password contains lowercase letters
+    const numberCriteria = /[0-9]/.test(pw); // Check if the password contains numbers
+    const symbolCriteria = /[@$!%*?&#]/.test(pw); // Check if the password contains symbols
 
-    setUpper(upperCriteria);
-    setLower(lowerCriteria);
-    setNum(numberCriteria);
-    setSym(symbolCriteria);
-    setCharCount(pw.length);
+    setUpper(upperCriteria); // Set uppercase criteria state
+    setLower(lowerCriteria); // Set lowercase criteria state
+    setNum(numberCriteria); // Set number criteria state
+    setSym(symbolCriteria); // Set symbol criteria state
+    setCharCount(pw.length); // Set password character count
 
     // Calculate score based on criteria
     if (pw.length < 5) {
@@ -117,17 +119,21 @@ const App = () => {
     return { score, message, colorClass }; // Return score, message, and color
   };
 
+  // Handle logout by removing the access token and navigating to the login page
   const logout = () => {
     localStorage.removeItem("accessToken");
     navigate("/login");
   };
 
+  // Toggle password visibility (show or hide)
   const togglePw = () => {
     setShow(!show);
   };
 
+  // State and function to handle password reset
   const [countdown, setCountdown] = useState(0);
   const updatePassword = async () => {
+    // Ensure old password and new password are valid before sending the request
     if (oldPw && newPw && newPw.length > 7) {
       const payload = { ...storedData, oldPassword: oldPw, newPassword: newPw };
       const response = await fetch("http://localhost:5000/update-password", {
@@ -139,11 +145,11 @@ const App = () => {
         body: JSON.stringify(payload),
       });
       if (response.ok) {
-        setOldPw("");
-        setNewPw("");
+        setOldPw(""); // Clear old password field
+        setNewPw(""); // Clear new password field
         const successMessage = await response.text();
         alert(successMessage);
-        logout();
+        logout(); // Log out after password update
       } else {
         const errorMessage = await response.text();
         alert(errorMessage);
@@ -153,6 +159,7 @@ const App = () => {
     }
   };
 
+  // Update user's name in the system
   const updateName = async () => {
     if (editName.length > 0) {
       setStoredData({ ...storedData, name: editName });
@@ -164,26 +171,29 @@ const App = () => {
         },
         body: JSON.stringify({ email: storedData.email, name: editName }),
       });
-      setEditName("");
+      setEditName(""); // Clear name input field
 
       if (response.ok) {
         const message = await response.text();
-        alert(message);
+        alert(message); // Show success message
       } else {
         const errorMessage = await response.text();
-        alert(errorMessage);
+        alert(errorMessage); // Show error message
       }
     } else {
       alert("Fill the name input area to proceed");
     }
   };
+
+  // Trigger dialog for forgotten password
   const handleForgotPassword = async () => {
     setShowDialog(true);
   };
 
+  // Handle password reset confirmation in the dialog
   const handleDialogConfirm = async () => {
-    if (countdown > 0) return;
-    setLoading(true);
+    if (countdown > 0) return; // Prevent resetting if countdown is active
+    setLoading(true); // Show loading overlay
     try {
       const response = await fetch("http://localhost:5000/forgot", {
         method: "POST",
@@ -200,22 +210,25 @@ const App = () => {
       console.error("Error:", error);
       alert("An error occurred. Please try again later.");
     }
-    setLoading(false);
-    localStorage.setItem("countdown", "60");
-    setShowDialog(false);
+    setLoading(false); // Hide loading overlay
+    localStorage.setItem("countdown", "60"); // Save countdown to localStorage
+    setShowDialog(false); // Close the dialog
   };
 
+  // Initialize countdown on page load
   useEffect(() => {
     const cd = localStorage.getItem("countdown");
     setCountdown(Number(cd));
   }, []);
 
+  // Format countdown as MM:SS
   const formatCountdown = (seconds) => {
     const minutes = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${minutes}:${secs < 10 ? "0" : ""}${secs}`;
   };
 
+  // Update countdown every second
   useEffect(() => {
     if (countdown <= 0) return;
 
@@ -227,6 +240,7 @@ const App = () => {
     return () => clearInterval(timer); // Clear the timer when the countdown reaches 0 or on component unmount
   }, [countdown]);
 
+  // Fetch user data on page load
   useEffect(() => {
     if (accessToken) {
       fetchData(accessToken);

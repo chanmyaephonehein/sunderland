@@ -6,34 +6,38 @@ import ReCAPTCHA from "react-google-recaptcha";
 import LoadingOverlay from "./Loading";
 
 const SignUp = () => {
-  const navigate = useNavigate();
-  const [showPassword, setShowPassword] = useState(false);
+  const navigate = useNavigate(); // For navigating between routes
+  const [showPassword, setShowPassword] = useState(false); // State to toggle password visibility
   const togglePasswordVisibility = () => {
-    setShowPassword((prev) => !prev);
+    setShowPassword((prev) => !prev); // Toggle function for password visibility
   };
+
+  // States to handle form inputs and logic
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [pw1, setPw1] = useState("");
-  const [pw2, setPw2] = useState("");
-  const [doMatch, setDoMatch] = useState(false);
+  const [pw1, setPw1] = useState(""); // First password input
+  const [pw2, setPw2] = useState(""); // Re-entered password
+  const [doMatch, setDoMatch] = useState(false); // To check if passwords match
   const [strength, setStrength] = useState({
     score: 0,
     message: "",
     colorClass: "",
-  });
-  const [upper, setUpper] = useState(false);
-  const [lower, setLower] = useState(false);
-  const [num, setNum] = useState(false);
-  const [sym, setSym] = useState(false);
-  const [charCount, setCharCount] = useState(0);
-  const [newUser, setNewUser] = useState({ name: "", email: "", password: "" });
+  }); // Password strength evaluation
+  const [upper, setUpper] = useState(false); // Contains uppercase letters
+  const [lower, setLower] = useState(false); // Contains lowercase letters
+  const [num, setNum] = useState(false); // Contains numbers
+  const [sym, setSym] = useState(false); // Contains symbols
+  const [charCount, setCharCount] = useState(0); // Character count of the password
+  const [newUser, setNewUser] = useState({ name: "", email: "", password: "" }); // Holds user data for submission
   const [captchaToken, setCaptchaToken] = useState(null); // Captcha token state
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(false); // Loading state for async operations
 
+  // Check if passwords match and update the state
   const isPwMatch = () => {
     setDoMatch(pw1 === pw2);
   };
 
+  // Handlers for updating state with input values
   const forName = (name) => {
     setName(name);
     setNewUser({ ...newUser, name });
@@ -48,11 +52,13 @@ const SignUp = () => {
     setNewUser({ ...newUser, password: pw1 });
   };
 
+  // Email format validation using regex
   const validateEmailFormat = (email) => {
     const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
     return emailRegex.test(email);
   };
 
+  // Main signup function for form submission
   const signUpFunction = async () => {
     setLoading(true);
 
@@ -63,6 +69,7 @@ const SignUp = () => {
       return;
     }
 
+    // Check all conditions before submitting
     if (email && captchaToken && pw1 === pw2 && pw1.length >= 8) {
       const response = await fetch("http://localhost:5000/signup", {
         method: "POST",
@@ -87,14 +94,16 @@ const SignUp = () => {
     setLoading(false);
   };
 
+  // Function to evaluate password strength
   const evaluatePasswordStrength = (pw) => {
-    let score = 0;
+    // Criteria checks for password complexity
     const lengthCriteria = pw.length >= 8;
     const upperCriteria = /[A-Z]/.test(pw);
     const lowerCriteria = /[a-z]/.test(pw);
     const numberCriteria = /[0-9]/.test(pw);
     const symbolCriteria = /[@$!%*?&#]/.test(pw);
 
+    // Update individual validation states
     setUpper(upperCriteria);
     setLower(lowerCriteria);
     setNum(numberCriteria);
@@ -102,6 +111,7 @@ const SignUp = () => {
     setCharCount(pw.length);
 
     // Determine score based on length first
+    let score = 0;
     if (pw.length < 5) {
       score = 0; // Very Weak
     } else if (pw.length < 7) {
@@ -163,10 +173,12 @@ const SignUp = () => {
     return { score, message, colorClass }; // Return score, message, and color
   };
 
+  // Captcha callback function
   const captcha = (value) => {
     setCaptchaToken(value); // Save captcha token to state
   };
 
+  // Effect to check password match and evaluate strength on password change
   useEffect(() => {
     isPwMatch();
     setStrength(evaluatePasswordStrength(pw1));

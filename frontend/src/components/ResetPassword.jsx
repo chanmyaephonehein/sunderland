@@ -3,23 +3,24 @@ import { useParams, useNavigate } from "react-router-dom";
 import logo from "../logo.svg";
 
 const ResetPassword = () => {
-  const { token } = useParams(); // Extract the token from the URL
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
-  const [error, setError] = useState("");
-  const navigate = useNavigate();
-  const [showPassword, setShowPassword] = useState(false);
+  const { token } = useParams(); // Extract the token from the URL using React Router
+  const [newPassword, setNewPassword] = useState(""); // State for the new password
+  const [confirmPassword, setConfirmPassword] = useState(""); // State for the confirmation password
+  const [error, setError] = useState(""); // State to handle error messages
+  const navigate = useNavigate(); // React Router hook to navigate between pages
+  const [showPassword, setShowPassword] = useState(false); // State to toggle password visibility
   const [strength, setStrength] = useState({
     score: 0,
     message: "",
     colorClass: "",
-  });
-  const [upper, setUpper] = useState(false);
-  const [lower, setLower] = useState(false);
-  const [num, setNum] = useState(false);
-  const [sym, setSym] = useState(false);
-  const [charCount, setCharCount] = useState(0);
+  }); // State to track password strength
+  const [upper, setUpper] = useState(false); // Uppercase letter validation
+  const [lower, setLower] = useState(false); // Lowercase letter validation
+  const [num, setNum] = useState(false); // Numeric validation
+  const [sym, setSym] = useState(false); // Symbol validation
+  const [charCount, setCharCount] = useState(0); // Character count
 
+  // Function to check if the token has expired
   const ifExpire = async () => {
     const response = await fetch(`http://localhost:5000/expiry`, {
       method: "POST",
@@ -29,20 +30,22 @@ const ResetPassword = () => {
       body: JSON.stringify({ token }),
     });
     if (response.ok) {
-      return alert("Reset your password.");
+      return alert("Reset your password."); // Notify the user to reset their password
     } else if (!response.ok) {
-      navigate("/");
-      return alert(await response.text());
+      navigate("/"); // Redirect to home if the token is invalid
+      return alert(await response.text()); // Display the server error message
     }
   };
 
+  // Validate the token on component mount
   useEffect(() => {
     ifExpire();
   }, []);
 
+  // Function to handle password reset
   const handlePasswordReset = async (e) => {
     if (newPassword !== confirmPassword) {
-      setError("Passwords do not match.");
+      setError("Passwords do not match."); // Ensure both passwords match
       return;
     }
     try {
@@ -55,30 +58,33 @@ const ResetPassword = () => {
       });
       if (response.ok) {
         const message = await response.text();
-        alert(message);
-        localStorage.removeItem("accessToken");
+        alert(message); // Notify success
+        localStorage.removeItem("accessToken"); // Clear access token
         navigate("/login"); // Redirect to login page
       } else {
         const errorMessage = await response.text();
-        alert(errorMessage);
+        alert(errorMessage); // Show server error message
       }
     } catch (error) {
-      setError("Failed to reset password. Please try again.");
+      setError("Failed to reset password. Please try again."); // Handle network errors
     }
   };
 
+  // Toggle the visibility of the password fields
   const togglePasswordVisibility = () => {
     setShowPassword(!showPassword);
   };
 
+  // Function to evaluate password strength
   const evaluatePasswordStrength = (pw) => {
-    let score = 0;
+    // Criteria checks for password complexity
     const lengthCriteria = pw.length >= 8;
     const upperCriteria = /[A-Z]/.test(pw);
     const lowerCriteria = /[a-z]/.test(pw);
     const numberCriteria = /[0-9]/.test(pw);
     const symbolCriteria = /[@$!%*?&#]/.test(pw);
 
+    // Update individual validation states
     setUpper(upperCriteria);
     setLower(lowerCriteria);
     setNum(numberCriteria);
@@ -86,6 +92,7 @@ const ResetPassword = () => {
     setCharCount(pw.length);
 
     // Determine score based on length first
+    let score = 0;
     if (pw.length < 5) {
       score = 0; // Very Weak
     } else if (pw.length < 7) {
@@ -147,6 +154,7 @@ const ResetPassword = () => {
     return { score, message, colorClass }; // Return score, message, and color
   };
 
+  // Re-evaluate password strength whenever the password changes
   useEffect(() => {
     setStrength(evaluatePasswordStrength(newPassword));
   }, [newPassword]);

@@ -6,20 +6,24 @@ import LoadingOverlay from "./Loading";
 import ReCAPTCHA from "react-google-recaptcha";
 
 const Login = () => {
-  const [loading, setLoading] = useState(false);
-  const navigate = useNavigate();
-  const [showPassword, setShowPassword] = useState(false);
-  const [user, setUser] = useState({ email: "", password: "" });
-  const [countdown, setCountdown] = useState(0);
+  // State declarations
+  const [loading, setLoading] = useState(false); // Tracks loading state
+  const navigate = useNavigate(); // Provides navigation functionality
+  const [showPassword, setShowPassword] = useState(false); // Toggles password visibility
+  const [user, setUser] = useState({ email: "", password: "" }); // Stores user email and password
+  const [countdown, setCountdown] = useState(0); // Countdown timer for reset link
   const [captchaToken, setCaptchaToken] = useState(null); // Captcha token state
-  const [showForgotPassword, setShowForgotPassword] = useState(false); // Forgot Password dialog visibility
-  const [showSuccessDialog, setShowSuccessDialog] = useState(false); // Success dialog visibility
-  const [dialogInput, setDialogInput] = useState(""); // Input field in the success dialog
+  const [showForgotPassword, setShowForgotPassword] = useState(false); // Tracks forgot password dialog visibility
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false); // Tracks success dialog visibility
+  const [dialogInput, setDialogInput] = useState(""); // Stores input in the success dialog
 
+  // Email validation helper function
   const validateEmailFormat = (email) => {
     const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
     return emailRegex.test(email);
   };
+
+  // Handles login action
   const login = async () => {
     // Validate email format
     if (!validateEmailFormat(user.email)) {
@@ -54,6 +58,7 @@ const Login = () => {
     setLoading(false);
   };
 
+  // Handles sending the reset email
   const handleSendMail = async () => {
     if (countdown > 0) return;
     setLoading(true);
@@ -78,6 +83,7 @@ const Login = () => {
     localStorage.setItem("countdown", "60");
   };
 
+  // Handles multi-factor authentication
   const confirmCode = async () => {
     if (dialogInput && user.email) {
       const response = await fetch(`http://localhost:5000/multi-factor`, {
@@ -100,21 +106,25 @@ const Login = () => {
     }
   };
 
+  // Captcha callback
   const captcha = (value) => {
     setCaptchaToken(value); // Save captcha token to state
   };
 
+  // Initialize countdown from localStorage
   useEffect(() => {
     const cd = localStorage.getItem("countdown");
     setCountdown(Number(cd));
   }, []);
 
+  // Formats the countdown for display
   const formatCountdown = (seconds) => {
     const minutes = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${minutes}:${secs < 10 ? "0" : ""}${secs}`;
   };
 
+  // Countdown timer logic
   useEffect(() => {
     if (countdown <= 0) return;
 
