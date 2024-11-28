@@ -69,8 +69,26 @@ const SignUp = () => {
       return;
     }
 
+    if (!pw1 || pw1.length < 8) {
+      alert("Password must be at least 8 characters long.");
+      setLoading(false);
+      return;
+    }
+
+    if (!captchaToken) {
+      alert("Please complete the reCAPTCHA verification.");
+      setLoading(false);
+      return;
+    }
+
+    if (pw1 !== pw2) {
+      alert("Passwords do not match. Please try again.");
+      setLoading(false);
+      return;
+    }
+
     // Check all conditions before submitting
-    if (email && captchaToken && pw1 === pw2 && pw1.length >= 8) {
+    try {
       const response = await fetch("http://localhost:5000/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -80,18 +98,16 @@ const SignUp = () => {
         const message = await response.text();
         alert(message);
         setLoading(false);
+        navigate("/"); // to login
       } else {
         const errorMessage = await response.text();
         alert(errorMessage);
         setLoading(false);
       }
-    } else {
-      alert(
-        "Complete the form and reCAPTCHA verification & Password at least 8."
-      );
+    } catch (error) {
+      alert("An unexpected error occurred. Please try again.");
       setLoading(false);
     }
-    setLoading(false);
   };
 
   // Function to evaluate password strength

@@ -96,7 +96,10 @@ app.post("/login", async (req, res) => {
     password &&
     password.length > 7 &&
     captchaToken;
-  if (!isValid) return res.status(400).send("Bad Request");
+  if (!isValid)
+    return res
+      .status(400)
+      .send("Please fill all fields including email, password, and captcha.");
 
   // Verify reCAPTCHA token with Google
   const secretKey = process.env.RECAPTCHA_SECRET_KEY;
@@ -189,23 +192,45 @@ app.post("/login", async (req, res) => {
 app.post("/signup", async (req, res) => {
   const { name, email, password, captchaToken } = req.body;
 
-  // Validate email format
-  if (!validateEmailFormat(email)) {
-    return res.status(400).send("Invalid email format.");
+  // Validate name
+  if (!name || name.trim().length < 3) {
+    return res.status(400).send("Name must be at least 3 characters long.");
   }
 
-  const isValid = email && password && password.length > 7 && captchaToken;
-  if (!isValid)
+  // Validate email format
+  if (!validateEmailFormat(email)) {
     return res
       .status(400)
-      .send("Password must at least 8 and fill all the blank");
+      .send("Invalid email format. Please enter a valid email.");
+  }
+
+  // Validate password length
+  if (!password || password.length < 8) {
+    return res.status(400).send("Password must be at least 8 characters long.");
+  }
+
+  // Validate all required fields
+  if (!captchaToken) {
+    return res.status(400).send("Please complete the reCAPTCHA verification.");
+  }
 
   // Verify reCAPTCHA token with Google
-  const secretKey = process.env.RECAPTCHA_SECRET_KEY;
-  const captchaUrl = `https://www.google.com/recaptcha/api/siteverify?secret=${secretKey}&response=${captchaToken}`;
-  const captchaResponse = await axios.post(captchaUrl);
-  if (!captchaResponse.data.success) {
-    return res.status(400).send({ error: "reCAPTCHA validation failed" });
+  try {
+    const secretKey = process.env.RECAPTCHA_SECRET_KEY;
+    const captchaUrl = `https://www.google.com/recaptcha/api/siteverify?secret=${secretKey}&response=${captchaToken}`;
+    const captchaResponse = await axios.post(captchaUrl);
+
+    if (!captchaResponse.data.success) {
+      return res
+        .status(400)
+        .send("reCAPTCHA validation failed. Please try again.");
+    }
+  } catch (error) {
+    return res
+      .status(500)
+      .send(
+        "An error occurred while verifying reCAPTCHA. Please try again later."
+      );
   }
 
   // Check if the email already exists in the database
@@ -272,7 +297,11 @@ app.post("/verify-email", async (req, res) => {
     }
 
     // If the token is valid, hash the password to store it securely in the database
-    const hashedPassword = await bcrypt.hash(verificationRecord.password, 10);
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(
+      verificationRecord.password,
+      saltRounds
+    );
 
     // Create the user in the 'users' table with the verified email and password
     const user = await prisma.users.create({

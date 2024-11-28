@@ -40,7 +40,7 @@ const ResetPassword = () => {
   // Validate the token on component mount
   useEffect(() => {
     ifExpire();
-  }, []);
+  }, [handlePasswordReset]);
 
   // Function to handle password reset
   const handlePasswordReset = async (e) => {
